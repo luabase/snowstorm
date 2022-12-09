@@ -1,0 +1,35 @@
+[package]
+name = "snowstorm"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+description = "Snowflake Connector"
+readme = "README.md"
+repository = "https://github.com/akolov/snowstorm"
+keywords = ["snowflake", "data-science"]
+categories = ["database"]
+
+[dependencies]
+anyhow = "1.0.66"
+derivative = "2.2.0"
+log = "0.4.17"
+percent-encoding = "2.2.0"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0.149", features = ["derive"] }
+serde_json = "1.0.89"
+serde_urlencoded = "0.7.1"
+thiserror = "1.0.37"
+time = "0.3.17"
+tokio = { version = "1.23.0", features = ["full"] }
+uuid = { version = "1.2.2", features = ["v4", "fast-rng", "macro-diagnostics"] }
+
+[dev-dependencies]
+rotenv = "0.15.0"
+rotenv_codegen = "0.15.0"
+simple_logger = "4.0.0"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = "s"
+strip = "debuginfo"
