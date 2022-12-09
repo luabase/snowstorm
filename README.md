@@ -31,7 +31,7 @@ async fn main() {
 Execute queries using the session created above:
 
 ```rust
-let res = client.execute("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+let res = session.execute("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
 for row in res.rowset.into_iter() {
     println!("{:?}", row);
 }
