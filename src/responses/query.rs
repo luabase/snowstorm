@@ -28,18 +28,19 @@ impl QueryDeserializer for VecResult {
 
 }
 
+
 pub struct HashMapResult {
     pub rowtype: Vec<RowType>,
     pub rowset: Vec<HashMap<String, serde_json::Value>>
 }
 
-impl QueryDeserializer for  HashMapResult {
+impl QueryDeserializer for HashMapResult {
 
     fn deserialize(json: serde_json::Value) -> Result<Self, SnowflakeError> {
         let res: VecResult = serde_json::from_value(json)
             .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
 
-        let mut rowset = Vec::<HashMap<String, serde_json::Value>>::new();
+        let mut rowset = Vec::new();
         for row in res.rowset {
             let mut mapping = HashMap::<String, serde_json::Value>::new();
             for it in res.rowtype.iter().zip(row.iter()) {
@@ -51,6 +52,37 @@ impl QueryDeserializer for  HashMapResult {
         }
 
         Ok(HashMapResult {
+            rowtype: res.rowtype,
+            rowset
+        })
+    }
+
+}
+
+
+pub struct JsonMapResult {
+    pub rowtype: Vec<RowType>,
+    pub rowset: Vec<serde_json::Map<String, serde_json::Value>>
+}
+
+impl QueryDeserializer for JsonMapResult {
+
+    fn deserialize(json: serde_json::Value) -> Result<Self, SnowflakeError> {
+        let res: VecResult = serde_json::from_value(json)
+            .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+
+        let mut rowset = Vec::new();
+        for row in res.rowset {
+            let mut mapping = serde_json::Map::<String, serde_json::Value>::new();
+            for it in res.rowtype.iter().zip(row.iter()) {
+                let (ai, bi) = it;
+                mapping.insert(ai.name.clone(), bi.clone());
+            }
+
+            rowset.push(mapping);
+        }
+
+        Ok(JsonMapResult {
             rowtype: res.rowtype,
             rowset
         })

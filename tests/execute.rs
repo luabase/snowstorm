@@ -1,6 +1,11 @@
 mod support;
 
-use snowstorm::{errors::SnowflakeError, responses::query::HashMapResult, responses::query::VecResult};
+use snowstorm::{
+    errors::SnowflakeError,
+    responses::query::HashMapResult,
+    responses::query::VecResult,
+    responses::query::JsonMapResult
+};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]
@@ -31,6 +36,17 @@ async fn execute_select_into_hashmap_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session.execute::<HashMapResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+    assert_eq!(res.rowset.len(), 10);
+    Ok(())
+}
+
+#[tokio::test]
+async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_full_client().expect("Client should have been created");
+    let session = client.connect().await.expect("Session should have been created");
+    let res = session.execute::<JsonMapResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
     assert_eq!(res.rowset.len(), 10);
     Ok(())
 }
