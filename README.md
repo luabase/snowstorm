@@ -10,10 +10,10 @@ Create a new client and establish a session:
 async fn main() {
     let client = Snowstorm::new("account_id.us-central1.gcp".into(), "my_user".into(), "very_secure_password".into());
     let session = client.connect().await.unwrap();
-    _ = session.execute("USE ROLE ACCOUNTADMIN").await;
-    _ = session.execute("USE DATABASE LUABASE").await;
-    _ = session.execute("USE SCHEMA CLICKHOUSE").await;
-    _ = session.execute("USE WAREHOUSE IMPORT_TEST").await;
+    _ = session.execute::<VecResult>("USE ROLE ACCOUNTADMIN").await;
+    _ = session.execute::<VecResult>("USE DATABASE LUABASE").await;
+    _ = session.execute::<VecResult>("USE SCHEMA CLICKHOUSE").await;
+    _ = session.execute::<VecResult>("USE WAREHOUSE IMPORT_TEST").await;
 }
 ```
 
@@ -31,7 +31,7 @@ async fn main() {
 Execute queries using the session created above:
 
 ```rust
-let res = session.execute("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+let res = session.execute::<HashMapResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
 for row in res.rowset.into_iter() {
     println!("{:?}", row);
 }
