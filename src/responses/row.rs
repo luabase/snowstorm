@@ -3,8 +3,11 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowType {
-    pub nullable: bool,
     #[serde(rename="type")]
     pub data_type: String,
-    pub name: String
+    pub name: String,
+    pub nullable: bool,
+    pub precision: Option<u32>,
+    pub scale: Option<i32>,
+    pub byte_length: Option<usize>
 }
