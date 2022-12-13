@@ -1,5 +1,5 @@
 use rotenv_codegen::dotenv;
-use snowstorm::Snowstorm;
+use snowstorm::{Snowstorm, responses::query::VecResult};
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +18,7 @@ async fn main() {
 
     let client = Snowstorm::try_new_with_dsn(dsn.into()).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+    let res = session.execute::<VecResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
     for row in res.rowset.into_iter() {
         println!("{:?}", row);
     }

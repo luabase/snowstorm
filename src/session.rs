@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{DataResponse, QueryResponse};
+use crate::responses::{data::DataResponse, query::QueryDeserializer};
 use crate::requests::QueryRequest;
 
 use anyhow::anyhow;
@@ -23,7 +23,7 @@ impl Session {
         }
     }
 
-    pub async fn execute(&self, query: &str) -> Result<QueryResponse, SnowflakeError> {
+    pub async fn execute<T: QueryDeserializer>(&self, query: &str) -> Result<T, SnowflakeError> {
         let timestamp = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64;
         let req = QueryRequest {
             async_exec: false,
@@ -67,12 +67,12 @@ impl Session {
             }
         }
 
-        let data: QueryResponse = serde_json::from_value(res.data)
+        let data = T::deserialize(res.data)
             .map_err(|e| {
                 log::error!(
                     "Failed to execute query {query} due to data deserialization error. API response was: {text}"
                 );
-                SnowflakeError::DeserializationError(e.into())
+                e
             })?;
 
         Ok(data)

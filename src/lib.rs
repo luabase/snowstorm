@@ -8,7 +8,7 @@ mod utils;
 use anyhow::anyhow;
 use errors::SnowflakeError;
 use requests::{DataRequest, LoginRequest};
-use responses::{DataResponse, LoginResponse};
+use responses::{data::DataResponse, login::LoginResponse, query::VecResult};
 use session::Session;
 use std::collections::HashMap;
 use reqwest::Url;
@@ -160,25 +160,25 @@ impl Snowstorm {
         let session = Session::new(session_client, &self.get_host());
 
         if let Some(role) = &self.role {
-            if let Err(e) = session.execute(&format!("USE ROLE {role}")).await {
+            if let Err(e) = session.execute::<VecResult>(&format!("USE ROLE {role}")).await {
                 return Err(e)
             }
         }
 
         if let Some(database) = &self.database {
-            if let Err(e) = session.execute(&format!("USE DATABASE {database}")).await {
+            if let Err(e) = session.execute::<VecResult>(&format!("USE DATABASE {database}")).await {
                 return Err(e)
             }
         }
 
         if let Some(schema) = &self.schema {
-            if let Err(e) = session.execute(&format!("USE SCHEMA {schema}")).await {
+            if let Err(e) = session.execute::<VecResult>(&format!("USE SCHEMA {schema}")).await {
                 return Err(e)
             }
         }
 
         if let Some(warehouse) = &self.warehouse {
-            if let Err(e) = session.execute(&format!("USE WAREHOUSE {warehouse}")).await {
+            if let Err(e) = session.execute::<VecResult>(&format!("USE WAREHOUSE {warehouse}")).await {
                 return Err(e)
             }
         }
