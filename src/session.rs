@@ -46,8 +46,6 @@ impl Session {
             .text().await
             .map_err(|e| SnowflakeError::ExecutionError(e.into()))?;
 
-        log::debug!("Response: {text}");
-
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text)
             .map_err(|e| {
                 log::error!("Failed to execute query {query} due to deserialization error. API response was: {text}");
