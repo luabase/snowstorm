@@ -19,6 +19,30 @@ async fn execute_success() -> Result<(), anyhow::Error> {
 }
 
 #[tokio::test]
+async fn execute_fail() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_valid_client();
+    let session = client.connect().await.expect("Session should have been created");
+    match session.execute::<VecResult>("INVALID QUERY").await {
+        Ok(_) => panic!("Error should've occurred"),
+        Err(e) => {
+            match e {
+                SnowflakeError::ExecutionError(_, r) => {
+                    let r = r.unwrap();
+                    assert_eq!(r.error_type, "COMPILATION");
+                    assert_eq!(r.internal_error, false);
+                }
+                _ => panic!("SnowflakeError::ExecutionError should've been raised")
+            }
+
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
     common_init();
 
@@ -58,6 +82,6 @@ async fn execute_error() -> Result<(), anyhow::Error> {
     let client = new_valid_client();
     let session = client.connect().await.expect("Session should have been created");
     let result = session.execute::<VecResult>("INVALID STATEMENT").await;
-    assert_err!(result, Err(SnowflakeError::ExecutionError(_)));
+    assert_err!(result, Err(SnowflakeError::ExecutionError(_, _)));
     Ok(())
 }

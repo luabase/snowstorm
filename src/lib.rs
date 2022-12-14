@@ -105,7 +105,8 @@ impl Snowstorm {
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
-        let account_name = &self.account.split(".").next().unwrap_or("");
+        let (account_name, region) = &self.account.split_once(".").unwrap_or((&self.account, ""));
+
         let req = DataRequest {
             data: LoginRequest {
                 account_name,
@@ -157,7 +158,12 @@ impl Snowstorm {
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
-        let session = Session::new(session_client, &self.get_host());
+        let session = Session::new(
+            session_client,
+            &self.get_host(),
+            &account_name,
+            (!region.is_empty()).then(|| *region)
+        );
 
         if let Some(role) = &self.role {
             if let Err(e) = session.execute::<VecResult>(&format!("USE ROLE {role}")).await {
