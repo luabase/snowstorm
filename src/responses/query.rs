@@ -25,11 +25,11 @@ pub trait QueryDeserializer: Sized {
 #[serde(rename_all = "camelCase")]
 struct InternalErrorResult {
     #[serde(rename="type")]
-    error_type: String,
+    error_type: Option<String>,
     error_code: String,
     internal_error: bool,
-    line: i32,
-    pos: i32,
+    line: Option<i32>,
+    pos: Option<i32>,
     query_id: String
 }
 
@@ -37,11 +37,11 @@ struct InternalErrorResult {
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResult {
     #[serde(rename="type")]
-    pub error_type: String,
+    pub error_type: Option<String>,
     pub error_code: String,
     pub internal_error: bool,
-    pub line: i32,
-    pub pos: i32,
+    pub line: Option<i32>,
+    pub pos: Option<i32>,
     pub query_id: String,
     pub query_detail_url: String
 }
