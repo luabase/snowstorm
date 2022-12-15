@@ -5,6 +5,7 @@ use serde::Deserialize;
 pub struct RowType {
     #[serde(rename="type")]
     pub data_type: String,
+    pub ext_type_name: Option<String>,
     pub name: String,
     pub nullable: bool,
     pub precision: Option<u32>,

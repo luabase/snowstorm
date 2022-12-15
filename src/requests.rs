@@ -17,6 +17,7 @@ pub struct LoginRequest<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest<'a> {
     pub async_exec: bool,
+    pub parameters: Option<serde_json::Value>,
     pub query_submission_time: i64,
     pub sequence_id: u32,
     pub sql_text: &'a str

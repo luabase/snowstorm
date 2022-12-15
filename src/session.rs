@@ -3,8 +3,9 @@ use crate::responses::{data::DataResponse, deserializer::QueryDeserializer, erro
 use crate::requests::QueryRequest;
 
 use anyhow::anyhow;
-use std::str;
 use chrono::prelude::*;
+use serde_json::json;
+use std::str;
 
 #[derive(Debug)]
 pub struct Session {
@@ -31,6 +32,7 @@ impl Session {
         let now = Utc::now();
         let req = QueryRequest {
             async_exec: false,
+            parameters: Some(json!({"TIMESTAMP": "UTC"})),
             query_submission_time: now.timestamp_millis(),
             sequence_id: self.sequence_counter,
             sql_text: query
