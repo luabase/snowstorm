@@ -1,5 +1,5 @@
 use rotenv_codegen::dotenv;
-use snowstorm::{Snowstorm, responses::query::VecResult};
+use snowstorm::{Snowstorm, responses::result::VecResult};
 
 #[tokio::main]
 async fn main() {

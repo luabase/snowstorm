@@ -1,7 +1,7 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use simple_logger;
-use snowstorm::{Snowstorm, errors::SnowflakeError, responses::query::VecResult};
+use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::VecResult};
 
 #[tokio::main]
 async fn main() {

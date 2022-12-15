@@ -1,11 +1,6 @@
 mod support;
 
-use snowstorm::{
-    errors::SnowflakeError,
-    responses::query::HashMapResult,
-    responses::query::VecResult,
-    responses::query::JsonMapResult
-};
+use snowstorm::{errors::SnowflakeError, responses::result::{HashMapResult, JsonMapResult, VecResult}};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]
@@ -30,7 +25,7 @@ async fn execute_fail() -> Result<(), anyhow::Error> {
             match e {
                 SnowflakeError::ExecutionError(_, r) => {
                     let r = r.unwrap();
-                    assert_eq!(r.error_type, "COMPILATION");
+                    assert_eq!(r.error_type.unwrap(), "COMPILATION");
                     assert_eq!(r.internal_error, false);
                 }
                 _ => panic!("SnowflakeError::ExecutionError should've been raised")
