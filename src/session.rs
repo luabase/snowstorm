@@ -4,7 +4,7 @@ use crate::requests::QueryRequest;
 
 use anyhow::anyhow;
 use std::str;
-use time::OffsetDateTime;
+use chrono::prelude::*;
 
 #[derive(Debug)]
 pub struct Session {
@@ -28,10 +28,10 @@ impl Session {
     }
 
     pub async fn execute<T: QueryDeserializer>(&self, query: &str) -> Result<T, SnowflakeError> {
-        let timestamp = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64;
+        let now = Utc::now();
         let req = QueryRequest {
             async_exec: false,
-            query_submission_time: timestamp,
+            query_submission_time: now.timestamp_millis(),
             sequence_id: self.sequence_counter,
             sql_text: query
         };
