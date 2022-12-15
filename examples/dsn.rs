@@ -1,7 +1,7 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use simple_logger;
-use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::VecResult};
+use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult};
 
 #[tokio::main]
 async fn main() {
@@ -23,7 +23,7 @@ async fn main() {
 
     let client = Snowstorm::try_new_with_dsn(dsn.into()).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute::<VecResult>("SELECT * FROM ethereum_transactions LIMIT 10").await;
+    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST LIMIT 10").await;
 
     match res {
         Ok(r) => {

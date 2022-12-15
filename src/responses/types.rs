@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub enum ValueType {
     Binary(Vec<u8>),
     Boolean(bool),
-    Number(String),  // Deserialize as string, since i128 deserialization is not implemented in serde
+    Number(i128),
     Float(f64),
     String(String),
     NaiveDate(NaiveDate),

@@ -29,12 +29,17 @@ pub trait QueryDeserializer: Sized {
             "fixed" => {
                 match value.as_str() {
                     Some(p) => {
+                        let num = i128::from_str_radix(p, 10)
+                            .map_err(|e| {
+                                log::error!("Failed to deserialize fixed number.");
+                                SnowflakeError::DeserializationError(e.into())
+                            })?;
                         if row_type.nullable {
-                            let boxed = Box::new(ValueType::Number(p.to_owned()));
+                            let boxed = Box::new(ValueType::Number(num));
                             Ok(ValueType::Nullable(Some(boxed)))
                         }
                         else {
-                            Ok(ValueType::Number(p.to_owned()))
+                            Ok(ValueType::Number(num))
                         }
                     },
                     None => handle_null_value(row_type)
@@ -55,29 +60,27 @@ pub trait QueryDeserializer: Sized {
                 }
             },
             "text" => {
-                let parsed: Option<String> = serde_json::from_value(value.to_owned())
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-                match parsed {
+                match value.as_str() {
                     Some(p) => {
                         if row_type.nullable {
-                            let boxed = Box::new(ValueType::String(p));
+                            let boxed = Box::new(ValueType::String(p.to_owned()));
                             Ok(ValueType::Nullable(Some(boxed)))
                         }
                         else {
-                            Ok(ValueType::String(p))
+                            Ok(ValueType::String(p.to_owned()))
                         }
                     },
                     None => handle_null_value(row_type)
                 }
             },
             "binary" => {
-                let parsed: Option<String> = serde_json::from_value(value.to_owned())
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-
                 let decoded;
-                match parsed {
+                match value.as_str() {
                     Some(p) => {
-                        decoded = hex::decode(p).map_err(|e| SnowflakeError::DeserializationError(e.into()));
+                        decoded = hex::decode(p).map_err(|e| {
+                            log::error!("Failed to deserialize binary.");
+                            SnowflakeError::DeserializationError(e.into())
+                        });
                     },
                     None => return handle_null_value(row_type)
                 }
@@ -96,9 +99,7 @@ pub trait QueryDeserializer: Sized {
                 }
             },
             "date" => {
-                let parsed: Option<i64> = serde_json::from_value(value.clone())
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-                match parsed {
+                match value.as_i64() {
                     Some(p) => {
                         let date = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(p);
                         if row_type.nullable {
@@ -175,45 +176,53 @@ pub trait QueryDeserializer: Sized {
                 }
             },
             "object" => {
-                let parsed: Option<HashMap<String, serde_json::Value>> = serde_json::from_value(value.to_owned())
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-                match parsed {
-                    Some(p) => {
-                        if row_type.nullable {
-                            let boxed;
-                            match &row_type.ext_type_name {
-                                Some(t) => {
-                                    match t.as_str() {
-                                        "GEOGRAPHY" => boxed = Box::new(ValueType::Geography(p)),
-                                        "GEOMETRY" => boxed = Box::new(ValueType::Geometry(p)),
-                                        _ => boxed = Box::new(ValueType::HashMap(p))
-                                    }
-                                }
-                                _ => boxed = Box::new(ValueType::HashMap(p))
+                let text = value.as_str();
+                let parsed: HashMap<String, serde_json::Value>;
+                match text {
+                    Some(t) => parsed = serde_json::from_str(t)
+                        .map_err(|e| {
+                            log::error!("Failed to deserialize object `{value}`");
+                            SnowflakeError::DeserializationError(e.into())
+                        })?,
+                    None => return handle_null_value(row_type)
+                }
+
+                if row_type.nullable {
+                    let boxed;
+                    match &row_type.ext_type_name {
+                        Some(t) => {
+                            match t.as_str() {
+                                "GEOGRAPHY" => boxed = Box::new(ValueType::Geography(parsed)),
+                                "GEOMETRY" => boxed = Box::new(ValueType::Geometry(parsed)),
+                                _ => boxed = Box::new(ValueType::HashMap(parsed))
                             }
-                            Ok(ValueType::Nullable(Some(boxed)))
                         }
-                        else {
-                            Ok(ValueType::HashMap(p))
-                        }
-                    },
-                    None => handle_null_value(row_type)
+                        _ => boxed = Box::new(ValueType::HashMap(parsed))
+                    }
+                    Ok(ValueType::Nullable(Some(boxed)))
+                }
+                else {
+                    Ok(ValueType::HashMap(parsed))
                 }
             },
             "array" => {
-                let parsed: Option<Vec<serde_json::Value>> = serde_json::from_value(value.to_owned())
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-                match parsed {
-                    Some(p) => {
-                        if row_type.nullable {
-                            let boxed = Box::new(ValueType::Vec(p));
-                            Ok(ValueType::Nullable(Some(boxed)))
-                        }
-                        else {
-                            Ok(ValueType::Vec(p))
-                        }
-                    },
-                    None => handle_null_value(row_type)
+                let text = value.as_str();
+                let parsed: Vec<serde_json::Value>;
+                match text {
+                    Some(t) => parsed = serde_json::from_str(t)
+                        .map_err(|e| {
+                            log::error!("Failed to deserialize object `{value}`");
+                            SnowflakeError::DeserializationError(e.into())
+                        })?,
+                    None => return handle_null_value(row_type)
+                }
+
+                if row_type.nullable {
+                    let boxed = Box::new(ValueType::Vec(parsed));
+                    Ok(ValueType::Nullable(Some(boxed)))
+                }
+                else {
+                    Ok(ValueType::Vec(parsed))
                 }
             },
             _ => {
