@@ -52,7 +52,7 @@ impl Session {
 
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text)
             .map_err(|e| {
-                log::error!("Failed to execute query {query} due to deserialization error. API response was: {text}");
+                log::error!("Failed to execute query {query} due to deserialization error.");
                 SnowflakeError::DeserializationError(e.into())
             })?;
 
@@ -75,7 +75,7 @@ impl Session {
         let data = T::deserialize(res.data, self)
             .map_err(|e| {
                 log::error!(
-                    "Failed to execute query {query} due to data deserialization error. API response was: {text}"
+                    "Failed to execute query {query} due to data deserialization error."
                 );
                 e
             })?;
