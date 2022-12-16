@@ -248,7 +248,7 @@ pub trait QueryDeserializer: Sized {
             Value::Vec(v) => serde_json::to_value(&v),
             Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Variant(v) => serde_json::to_value(Self::to_json_variant(v)),
+            Value::Variant(v) => serde_json::to_value(&v),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
                 match v {
@@ -276,7 +276,7 @@ pub trait QueryDeserializer: Sized {
             Value::Vec(v) => serde_json::to_value(&v),
             Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Variant(v) => serde_json::to_value(Self::to_json_variant(v)),
+            Value::Variant(v) => serde_json::to_value(&v),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
                 match v {
@@ -292,32 +292,6 @@ pub trait QueryDeserializer: Sized {
         match value {
             Ok(v) => serde_json::to_string(&v).unwrap_or("{}".to_owned()),
             Err(e) => e.to_string()
-        }
-    }
-
-    fn to_json_variant(v: &serde_json::Value) -> String {
-        if v.is_object() {
-            let str = v.as_str().unwrap_or("{}");
-            let json = compacto::Compressor::new(str).unwrap().compress();
-            match json {
-                Ok(j) => j,
-                Err(e) => e.to_string()
-            }
-        }
-        else if v.is_array() {
-            let str = v.as_str().unwrap_or("[]]");
-            let json = compacto::Compressor::new(str).unwrap().compress();
-            match json {
-                Ok(j) => j,
-                Err(e) => e.to_string()
-            }
-        }
-        else {
-            let value = serde_json::to_string(&v);
-            match value {
-                Ok(p) => p,
-                Err(e) => e.to_string()
-            }
         }
     }
 
