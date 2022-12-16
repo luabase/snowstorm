@@ -276,7 +276,7 @@ pub trait QueryDeserializer: Sized {
             Value::Vec(v) => serde_json::to_value(&v),
             Value::Geography(v) => serde_json::to_value(Self::to_pretty_map(v)),
             Value::Geometry(v) => serde_json::to_value(Self::to_pretty_map(v)),
-            Value::Variant(v) => serde_json::to_value(serde_json::to_string_pretty(v).unwrap_or("{}".to_owned())),
+            Value::Variant(v) => serde_json::to_value(v),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
                 match v {
@@ -290,7 +290,7 @@ pub trait QueryDeserializer: Sized {
     fn to_pretty_map(m: &HashMap<String, serde_json::Value>) -> String {
         let value = serde_json::to_value(m);
         match value {
-            Ok(v) => serde_json::to_string_pretty(&v).unwrap_or("{}".to_owned()),
+            Ok(v) => serde_json::to_string(&v).unwrap_or("{}".to_owned()),
             Err(e) => e.to_string()
         }
     }
