@@ -106,7 +106,8 @@ impl QueryDeserializer for JsonMapResult {
                 let deserialized = Self::deserialize_value(v, t);
                 match deserialized {
                     Ok(v) => {
-                        let serialized = Self::serialize_value(&v)?;
+                        let serialized = Self::serialize_value(&v)
+                            .map_err(|e| SnowflakeError::SerializationError(e.into()))?;
                         mapping.insert(t.name.clone(), serialized);
                     },
                     Err(e) => return Err(e)
