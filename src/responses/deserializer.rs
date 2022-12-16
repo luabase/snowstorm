@@ -272,10 +272,10 @@ pub trait QueryDeserializer: Sized {
             Value::NaiveDateTime(v) => serde_json::to_value(&v),
             Value::DateTimeUTC(v) => serde_json::to_value(&v),
             Value::DateTime(v) => serde_json::to_value(&v),
-            Value::HashMap(v) => serde_json::to_value(Self::to_pretty_map(v)),
+            Value::HashMap(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Vec(v) => serde_json::to_value(&v),
-            Value::Geography(v) => serde_json::to_value(Self::to_pretty_map(v)),
-            Value::Geometry(v) => serde_json::to_value(Self::to_pretty_map(v)),
+            Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
+            Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Variant(v) => serde_json::to_value(v),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
@@ -287,7 +287,7 @@ pub trait QueryDeserializer: Sized {
         }
     }
 
-    fn to_pretty_map(m: &HashMap<String, serde_json::Value>) -> String {
+    fn to_json_map(m: &HashMap<String, serde_json::Value>) -> String {
         let value = serde_json::to_value(m);
         match value {
             Ok(v) => serde_json::to_string(&v).unwrap_or("{}".to_owned()),
