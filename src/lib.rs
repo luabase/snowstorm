@@ -7,7 +7,7 @@ mod utils;
 
 use anyhow::anyhow;
 use errors::SnowflakeError;
-use requests::{DataRequest, LoginRequest};
+use requests::{DataRequest, LoginRequest, SessionParameters};
 use responses::{data::DataResponse, login::LoginResponse, result::VecResult};
 use session::Session;
 use std::collections::HashMap;
@@ -111,7 +111,10 @@ impl Snowstorm {
             data: LoginRequest {
                 account_name,
                 login_name: &self.user,
-                password: &self.password
+                password: &self.password,
+                session_parameters: Some(SessionParameters {
+                    timezone: Some("UTC".to_owned())
+                })
             }
         };
 

@@ -14,6 +14,7 @@ pub enum ValueType {
     NaiveTime(NaiveTime),
     NaiveDateTime(NaiveDateTime),
     DateTimeUTC(DateTime<Utc>),
+    DateTime(DateTime<FixedOffset>),
     HashMap(HashMap<String, serde_json::Value>),
     Vec(Vec<serde_json::Value>),
     Geography(HashMap<String, serde_json::Value>),

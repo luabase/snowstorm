@@ -1,7 +1,7 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use simple_logger;
-use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult};
+use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult, responses::types::ValueType};
 
 #[tokio::main]
 async fn main() {
@@ -23,12 +23,17 @@ async fn main() {
 
     let client = Snowstorm::try_new_with_dsn(dsn.into()).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST LIMIT 10").await;
+    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST WHERE _NUMBER = 100 LIMIT 10").await;
 
     match res {
         Ok(r) => {
             for row in r.rowset.into_iter() {
-                println!("{:?}", row);
+                let mut vec: Vec<(String, ValueType)> = row.into_iter().collect();
+                vec.sort_by_key(|k| k.0.clone());
+                for kv in vec.iter() {
+                    println!("{}: {:?}", kv.0, kv.1);
+                }
+                println!("---");
             }
         },
         Err(e) => {
