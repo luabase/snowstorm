@@ -297,20 +297,18 @@ pub trait QueryDeserializer: Sized {
 
     fn to_json_variant(v: &serde_json::Value) -> String {
         if v.is_object() {
-            let parsed: HashMap<String, serde_json::Value> = serde_json::from_str(v.as_str().unwrap_or("{}"))
-                .unwrap_or(HashMap::new());
-            let value = serde_json::to_value(&parsed);
-            match value {
-                Ok(p) => serde_json::to_string(&p).unwrap_or("{}".to_owned()),
+            let str = v.as_str().unwrap_or("{}");
+            let json = compacto::Compressor::new(str).unwrap().compress();
+            match json {
+                Ok(j) => j,
                 Err(e) => e.to_string()
             }
         }
         else if v.is_array() {
-            let parsed: Vec<serde_json::Value> = serde_json::from_str(v.as_str().unwrap_or("[]"))
-                .unwrap_or(Vec::new());
-            let value = serde_json::to_value(&parsed);
-            match value {
-                Ok(p) => serde_json::to_string(&p).unwrap_or("[]".to_owned()),
+            let str = v.as_str().unwrap_or("[]]");
+            let json = compacto::Compressor::new(str).unwrap().compress();
+            match json {
+                Ok(j) => j,
                 Err(e) => e.to_string()
             }
         }
