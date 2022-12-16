@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{deserializer::QueryDeserializer, row::RowType, types::ValueType};
+use crate::responses::{deserializer::QueryDeserializer, row::RowType, types::Value};
 use crate::session::Session;
 
 use serde::Deserialize;
@@ -18,7 +18,7 @@ struct InternalResult {
 #[derive(Debug)]
 pub struct VecResult {
     pub rowtype: Vec<RowType>,
-    pub rowset: Vec<Vec<ValueType>>,
+    pub rowset: Vec<Vec<Value>>,
     pub query_id: String,
     pub query_detail_url: String
 }
@@ -28,7 +28,7 @@ impl QueryDeserializer for VecResult {
     fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
         let res: InternalResult = serde_json::from_value(json)
             .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-        let rowset: Result<Vec<Vec<ValueType>>, SnowflakeError> = res.rowset
+        let rowset: Result<Vec<Vec<Value>>, SnowflakeError> = res.rowset
             .iter()
             .map(|r| r.iter().zip(res.rowtype.iter()).map(|(v, t)| Self::deserialize_value(v, t)).collect())
             .collect();
@@ -48,7 +48,7 @@ impl QueryDeserializer for VecResult {
 
 pub struct HashMapResult {
     pub rowtype: Vec<RowType>,
-    pub rowset: Vec<HashMap<String, ValueType>>,
+    pub rowset: Vec<HashMap<String, Value>>,
     pub query_id: String,
     pub query_detail_url: String
 }
@@ -58,7 +58,7 @@ impl QueryDeserializer for HashMapResult {
     fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
         let res: InternalResult = serde_json::from_value(json)
             .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-        let rowset: Result<Vec<HashMap<String, ValueType>>, SnowflakeError> = res.rowset
+        let rowset: Result<Vec<HashMap<String, Value>>, SnowflakeError> = res.rowset
             .iter()
             .map(|r| {
                 r.iter().zip(res.rowtype.iter())

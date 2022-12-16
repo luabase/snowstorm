@@ -1,7 +1,7 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use simple_logger;
-use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult, responses::types::ValueType};
+use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult, responses::types::Value};
 
 #[tokio::main]
 async fn main() {
@@ -28,10 +28,10 @@ async fn main() {
     match res {
         Ok(r) => {
             for row in r.rowset.into_iter() {
-                let mut vec: Vec<(String, ValueType)> = row.into_iter().collect();
+                let mut vec: Vec<(String, Value)> = row.into_iter().collect();
                 vec.sort_by_key(|k| k.0.clone());
                 for kv in vec.iter() {
-                    println!("{}: {:?}", kv.0, kv.1);
+                    println!("{}: {}", kv.0, kv.1);
                 }
                 println!("---");
             }
