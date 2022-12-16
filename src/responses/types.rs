@@ -39,11 +39,11 @@ impl fmt::Display for Value {
             Value::NaiveDateTime(v) => write!(f, "{:?}", *v),
             Value::DateTimeUTC(v) => write!(f, "{:?}", *v),
             Value::DateTime(v) => write!(f, "{:?}", *v),
-            Value::HashMap(v) => write!(f, "{:?}", to_pretty_map(v)),
+            Value::HashMap(v) => write!(f, "{:?}", *v),
             Value::Vec(v) => write!(f, "{:?}", *v),
-            Value::Geography(v) => write!(f, "{:?}", to_pretty_map(v)),
-            Value::Geometry(v) => write!(f, "{:?}", to_pretty_map(v)),
-            Value::Variant(v) => write!(f, "{:?}", serde_json::to_string_pretty(v).unwrap_or("{}".to_owned())),
+            Value::Geography(v) => write!(f, "{:?}", *v),
+            Value::Geometry(v) => write!(f, "{:?}", *v),
+            Value::Variant(v) => write!(f, "{:?}", *v),
             Value::Unsupported(v) => write!(f, "{:?}", *v),
             Value::Nullable(b) => {
                 match b {
@@ -56,13 +56,7 @@ impl fmt::Display for Value {
 
 }
 
-fn to_pretty_map(m: &HashMap<String, serde_json::Value>) -> String {
-    let value = serde_json::to_value(m);
-    match value {
-        Ok(v) => serde_json::to_string_pretty(&v).unwrap_or("{}".to_owned()),
-        Err(e) => e.to_string()
-    }
-}
+
 
 #[derive(Debug, Serialize)]
 pub enum ValueType {
