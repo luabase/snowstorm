@@ -103,12 +103,11 @@ impl QueryDeserializer for JsonMapResult {
             let mut mapping = serde_json::Map::<String, serde_json::Value>::new();
             for it in row.iter().zip(res.rowtype.iter()) {
                 let (v, t) = it;
-                let value = Self::deserialize_value(v, t);
-                match value {
-                    Ok(x) => {
-                        let val = serde_json::to_value(&x)
-                            .map_err(|e| SnowflakeError::SerializationError(e.into()))?;
-                        mapping.insert(t.name.clone(), val);
+                let deserialized = Self::deserialize_value(v, t);
+                match deserialized {
+                    Ok(v) => {
+                        let serialized = Self::serialize_value(&v)?;
+                        mapping.insert(t.name.clone(), serialized);
                     },
                     Err(e) => return Err(e)
                 }

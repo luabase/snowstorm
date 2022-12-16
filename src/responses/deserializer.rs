@@ -231,6 +231,96 @@ pub trait QueryDeserializer: Sized {
         }
     }
 
+    #[cfg(integer128)]
+    fn serialize_value(val: &Value) -> Result<serde_json::Value, SnowflakeError> {
+        match val {
+            Value::Binary(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Boolean(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Number(x) => serde_json::to_value(&x)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Float(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::String(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveDate(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveDateTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::DateTimeUTC(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::DateTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::HashMap(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Vec(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Geography(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Geometry(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Variant(v) => serde_json::to_value(&v).
+                map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Unsupported(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Nullable(v) => {
+                match v {
+                    Some(x) => Self::serialize_value(x),
+                    None => serde_json::to_value::<Option<String>>(None)
+                        .map_err(|e| SnowflakeError::SerializationError(e.into()))
+                }
+            },
+        }
+    }
+
+    #[cfg(not(integer128))]
+    fn serialize_value(val: &Value) -> Result<serde_json::Value, SnowflakeError> {
+        match val {
+            Value::Binary(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Boolean(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Number(x) => serde_json::to_value(&x.to_string())
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Float(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::String(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveDate(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::NaiveDateTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::DateTimeUTC(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::DateTime(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::HashMap(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Vec(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Geography(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Geometry(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Variant(v) => serde_json::to_value(&v).
+                map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Unsupported(v) => serde_json::to_value(&v)
+                .map_err(|e| SnowflakeError::SerializationError(e.into())),
+            Value::Nullable(v) => {
+                match v {
+                    Some(x) => Self::serialize_value(x),
+                    None => serde_json::to_value::<Option<String>>(None)
+                        .map_err(|e| SnowflakeError::SerializationError(e.into()))
+                }
+            },
+        }
+    }
+
     fn get_query_detail_url(session: &Session, query_id: &String) -> String {
         let components: Vec<String> = [session.region.clone(), Some(session.account.clone())]
             .into_iter()
