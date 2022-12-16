@@ -244,11 +244,11 @@ pub trait QueryDeserializer: Sized {
             Value::NaiveDateTime(v) => serde_json::to_value(&v),
             Value::DateTimeUTC(v) => serde_json::to_value(&v),
             Value::DateTime(v) => serde_json::to_value(&v),
-            Value::HashMap(v) => serde_json::to_value(&v),
+            Value::HashMap(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Vec(v) => serde_json::to_value(&v),
-            Value::Geography(v) => serde_json::to_value(&v),
-            Value::Geometry(v) => serde_json::to_value(&v),
-            Value::Variant(v) => serde_json::to_value(&v),
+            Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
+            Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
+            Value::Variant(v) => serde_json::to_value(Self::to_json_variant(v)),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
                 match v {
@@ -276,7 +276,7 @@ pub trait QueryDeserializer: Sized {
             Value::Vec(v) => serde_json::to_value(&v),
             Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
             Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Variant(v) => serde_json::to_value(v),
+            Value::Variant(v) => serde_json::to_value(Self::to_json_variant(v)),
             Value::Unsupported(v) => serde_json::to_value(&v),
             Value::Nullable(v) => {
                 match v {
@@ -292,6 +292,34 @@ pub trait QueryDeserializer: Sized {
         match value {
             Ok(v) => serde_json::to_string(&v).unwrap_or("{}".to_owned()),
             Err(e) => e.to_string()
+        }
+    }
+
+    fn to_json_variant(v: &serde_json::Value) -> String {
+        if v.is_object() {
+            let parsed: HashMap<String, serde_json::Value> = serde_json::from_str(v.as_str().unwrap_or("{}"))
+                .unwrap_or(HashMap::new());
+            let value = serde_json::to_value(&parsed);
+            match value {
+                Ok(p) => serde_json::to_string(&p).unwrap_or("{}".to_owned()),
+                Err(e) => e.to_string()
+            }
+        }
+        else if v.is_array() {
+            let parsed: Vec<serde_json::Value> = serde_json::from_str(v.as_str().unwrap_or("[]"))
+                .unwrap_or(Vec::new());
+            let value = serde_json::to_value(&parsed);
+            match value {
+                Ok(p) => serde_json::to_string(&p).unwrap_or("[]".to_owned()),
+                Err(e) => e.to_string()
+            }
+        }
+        else {
+            let value = serde_json::to_string(&v);
+            match value {
+                Ok(p) => p,
+                Err(e) => e.to_string()
+            }
         }
     }
 
