@@ -2,7 +2,7 @@ use crate::responses::types::ValueType;
 
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowType {
     #[serde(rename="type")]

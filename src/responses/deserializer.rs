@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{row::RowType, types::{Value, ValueType}};
+use crate::responses::{result::InternalResult, row::RowType, types::{Value, ValueType}};
 use crate::session::Session;
 
 use anyhow::anyhow;
@@ -8,7 +8,25 @@ use std::collections::HashMap;
 
 pub trait QueryDeserializer: Sized {
 
-    fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError>;
+    type ReturnType;
+
+    fn new(res: &InternalResult, rowset: &Self::ReturnType, session: &Session) -> Self;
+
+    // fn load_chunk(&self, chunk: Chunk) -> Result<Self::ReturnType, SnowflakeError> {
+    //     Self::ReturnType::new()
+    // }
+
+    fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
+        let res: InternalResult = serde_json::from_value(json)
+            .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+        let rowset = Self::deserialize_rowset(&res);
+        match rowset {
+            Ok(r) => Ok(Self::new(&res, &r, session)),
+            Err(e) => Err(e)
+        }
+    }
+
+    fn deserialize_rowset(res: &InternalResult) -> Result<Self::ReturnType, SnowflakeError>;
 
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
         let string;
@@ -295,18 +313,18 @@ pub trait QueryDeserializer: Sized {
         }
     }
 
-    fn get_query_detail_url(session: &Session, query_id: &String) -> String {
-        let components: Vec<String> = [session.region.clone(), Some(session.account.clone())]
-            .into_iter()
-            .filter_map(|x| x)
-            .collect();
-        let path = components.join("/");
-        format!("https://app.snowflake.com/{path}/#/compute/history/queries/{query_id}/detail")
-    }
-
 }
 
-fn handle_null_value(row_type: &RowType) -> Result<Value, SnowflakeError> {
+pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> String {
+    let components: Vec<String> = [session.region.clone(), Some(session.account.clone())]
+        .into_iter()
+        .filter_map(|x| x)
+        .collect();
+    let path = components.join("/");
+    format!("https://app.snowflake.com/{path}/#/compute/history/queries/{query_id}/detail")
+}
+
+pub(crate) fn handle_null_value(row_type: &RowType) -> Result<Value, SnowflakeError> {
     if row_type.nullable {
         Ok(Value::Nullable(None))
     }

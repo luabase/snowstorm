@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::QueryDeserializer;
+use crate::responses::deserializer::get_query_detail_url;
 use crate::session::Session;
 use serde::Deserialize;
 
@@ -28,19 +28,19 @@ pub struct ErrorResult {
     pub query_detail_url: String
 }
 
-impl QueryDeserializer for ErrorResult {
+impl ErrorResult {
 
-    fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
+    pub(crate) fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
         let res: InternalErrorResult = serde_json::from_value(json)
             .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
-        Ok(ErrorResult {
+        Ok(Self {
             error_type: res.error_type,
             error_code: res.error_code,
             internal_error: res.internal_error,
             line: res.line,
             pos: res.pos,
             query_id: res.query_id.clone(),
-            query_detail_url: Self::get_query_detail_url(session, &res.query_id.clone())
+            query_detail_url: get_query_detail_url(session, &res.query_id.clone())
         })
     }
 
