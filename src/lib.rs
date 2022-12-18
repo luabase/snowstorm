@@ -130,8 +130,8 @@ impl Snowstorm {
 
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text)
             .map_err(|e| {
-                log::error!("Failed to authenticate due to deserialization error. API response was: {text}");
-                SnowflakeError::DeserializationError(e.into())
+                log::error!("Failed to authenticate due to deserialization error.");
+                SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
             })?;
 
         if !res.success {
@@ -148,9 +148,9 @@ impl Snowstorm {
         let data: LoginResponse = serde_json::from_value(res.data)
             .map_err(|e| {
                 log::error!(
-                    "Failed to authenticate due to data deserialization error. API response was: {text}"
+                    "Failed to authenticate due to data deserialization error."
                 );
-                SnowflakeError::DeserializationError(e.into())
+                SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
             })?;
 
         let session_headers = Snowstorm::get_headers(Some(data.token.as_str()))

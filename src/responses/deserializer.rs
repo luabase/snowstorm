@@ -17,8 +17,8 @@ pub trait QueryDeserializer: Sized {
     // }
 
     fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
-        let res: InternalResult = serde_json::from_value(json)
-            .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+        let res: InternalResult = serde_json::from_value(json.clone())
+            .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), json.to_string()))?;
         let rowset = Self::deserialize_rowset(&res);
         match rowset {
             Ok(r) => Ok(Self::new(&res, &r, session)),
@@ -44,12 +44,16 @@ pub trait QueryDeserializer: Sized {
         match value_type {
             ValueType::Boolean => {
                 let parsed = serde_json::from_str::<u8>(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let v;
                 match parsed {
                     0 => v = false,
                     1 => v = true,
-                    _ => return Err(SnowflakeError::DeserializationError(anyhow!("Unexpected boolean value {parsed}")))
+                    _ => return Err(SnowflakeError::new_deserialization_error_with_field_and_value(
+                        anyhow!("Unexpected boolean value {parsed}"), row_type.name.clone(), string.to_owned()
+                    ))
                 }
 
                 if row_type.nullable {
@@ -62,7 +66,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::Number => {
                 let parsed: i128 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 if row_type.nullable {
                     let boxed = Box::new(Value::Number(parsed));
                     Ok(Value::Nullable(Some(boxed)))
@@ -73,7 +79,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::Float => {
                 let parsed: f64 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 if row_type.nullable {
                     let boxed = Box::new(Value::Float(parsed));
                     Ok(Value::Nullable(Some(boxed)))
@@ -93,10 +101,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::Binary => {
                 let decoded = hex::decode(string)
-                    .map_err(|e| {
-                        log::error!("Failed to deserialize binary.");
-                        SnowflakeError::DeserializationError(e.into())
-                    })?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
 
                 if row_type.nullable {
                     let boxed = Box::new(Value::Binary(decoded));
@@ -108,7 +115,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::NaiveDate => {
                 let parsed: i64 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let date = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(parsed);
                 if row_type.nullable {
                     let boxed = Box::new(Value::NaiveDate(date));
@@ -120,7 +129,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::NaiveTime => {
                 let parsed: f64 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let nanos = (parsed * 1_000_000_000.0).round() as i64;
                 let time = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
                 if row_type.nullable {
@@ -133,7 +144,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::NaiveDateTime => {
                 let parsed: f64 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let nanos = (parsed * 1_000_000_000.0).round() as i64;
                 let date = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
                 if row_type.nullable {
@@ -146,7 +159,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::DateTimeUTC => {
                 let parsed: f64 = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let nanos = (parsed * 1_000_000_000.0).round() as i64;
                 let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
                 let datetime = DateTime::<Utc>::from_utc(naive, Utc);
@@ -166,21 +181,33 @@ pub trait QueryDeserializer: Sized {
                 match pair {
                     Some(p) => (timezone_str, offset_str) = p,
                     None => return Err(
-                        SnowflakeError::DeserializationError(anyhow!("Expected timezone and offset pair, got {string}"))
+                        SnowflakeError::new_deserialization_error_with_field_and_value(
+                            anyhow!("Expected timezone and offset pair, got {string}"),
+                            row_type.name.clone(),
+                            string.to_owned()
+                        )
                     )
                 }
 
                 let timestamp: f64 = serde_json::from_str(timezone_str)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 let offset: i32 = serde_json::from_str(offset_str)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
 
                 let timezone_opt = FixedOffset::east_opt((offset - 1440) * 60);
                 let timezone;
                 match timezone_opt {
                     Some(tz) => timezone = tz,
                     None => return Err(
-                        SnowflakeError::DeserializationError(anyhow!("Invalid timezone offset {offset}"))
+                        SnowflakeError::new_deserialization_error_with_field_and_value(
+                            anyhow!("Invalid timezone offset {offset}"),
+                            row_type.name.clone(),
+                            string.to_owned()
+                        )
                     )
                 }
 
@@ -207,7 +234,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::HashMap => {
                 let parsed: HashMap<String, serde_json::Value> = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 if row_type.nullable {
                     let boxed;
                     match &row_type.ext_type_name {
@@ -228,7 +257,9 @@ pub trait QueryDeserializer: Sized {
             },
             ValueType::Vec => {
                 let parsed: Vec<serde_json::Value> = serde_json::from_str(string)
-                    .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+                    .map_err(|e| SnowflakeError::new_deserialization_error_with_field_and_value(
+                        e.into(), row_type.name.clone(), string.to_owned()
+                    ))?;
                 if row_type.nullable {
                     let boxed = Box::new(Value::Vec(parsed));
                     Ok(Value::Nullable(Some(boxed)))
@@ -330,6 +361,6 @@ pub(crate) fn handle_null_value(row_type: &RowType) -> Result<Value, SnowflakeEr
     }
     else {
         let e = anyhow!("Encountered NULL value for non-nullable field {}", row_type.name);
-        Err(SnowflakeError::DeserializationError(e))
+        Err(SnowflakeError::DeserializationError(e, None))
     }
 }

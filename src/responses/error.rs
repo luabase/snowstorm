@@ -31,8 +31,8 @@ pub struct ErrorResult {
 impl ErrorResult {
 
     pub(crate) fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
-        let res: InternalErrorResult = serde_json::from_value(json)
-            .map_err(|e| SnowflakeError::DeserializationError(e.into()))?;
+        let res: InternalErrorResult = serde_json::from_value(json.clone())
+            .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), json.to_string()))?;
         Ok(Self {
             error_type: res.error_type,
             error_code: res.error_code,

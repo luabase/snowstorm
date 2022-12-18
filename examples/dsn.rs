@@ -23,7 +23,7 @@ async fn main() {
 
     let client = Snowstorm::try_new_with_dsn(dsn.into()).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST WHERE _NUMBER = 100 LIMIT 10").await;
+    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await;
 
     match res {
         Ok(r) => {

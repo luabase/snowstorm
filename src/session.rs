@@ -55,7 +55,7 @@ impl Session {
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text)
             .map_err(|e| {
                 log::error!("Failed to execute query {query} due to deserialization error.");
-                SnowflakeError::DeserializationError(e.into())
+                SnowflakeError::new_deserialization_error_with_value(e.into(), text)
             })?;
 
         if !res.success {
