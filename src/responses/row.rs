@@ -29,7 +29,14 @@ impl RowType {
     fn inner_value_type(&self) -> ValueType {
         match self.data_type.as_str() {
             "boolean" => ValueType::Boolean,
-            "fixed" => ValueType::Number,
+            "fixed" => {
+                if self.scale == Some(0) {
+                    ValueType::Number
+                }
+                else {
+                    ValueType::Float
+                }
+            },
             "real" => ValueType::Float,
             "text" => ValueType::String,
             "binary" => ValueType::Binary,
