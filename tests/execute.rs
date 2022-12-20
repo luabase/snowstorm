@@ -72,6 +72,19 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
 }
 
 #[tokio::test]
+async fn execute_select_into_chunked_success() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_full_client().expect("Client should have been created");
+    let session = client.connect().await.expect("Session should have been created");
+    let res = session.execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS LIMIT 2000")
+        .await
+        .unwrap();
+    assert_eq!(res.rowset.len(), 2000);
+    Ok(())
+}
+
+#[tokio::test]
 async fn execute_error() -> Result<(), anyhow::Error> {
     common_init();
 

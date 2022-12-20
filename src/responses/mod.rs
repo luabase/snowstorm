@@ -4,26 +4,42 @@ pub mod serializer;
 pub mod types;
 
 use crate::errors::SnowflakeError;
-use crate::responses::types::internal::InternalResult;
+use crate::responses::types::{chunk::Chunk, internal::InternalResult};
 use crate::session::Session;
 
+use anyhow::anyhow;
+use async_trait::async_trait;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT};
+use std::collections::HashMap;
+
+
+#[async_trait]
 pub trait QueryResult: deserializer::QueryDeserializer + serializer::QuerySerializer + Sized {
 
-    fn new(res: &InternalResult, rowset: &Self::ReturnType, session: &Session) -> Self;
+    fn new(res: &InternalResult, rowset: &Vec<Self::ReturnType>, session: &Session) -> Self;
 
-    fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
-        let res: InternalResult = serde_json::from_value(json.clone())
-            .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), json.to_string()))?;
-        let rowset = Self::deserialize_rowset(&res);
-        match rowset {
-            Ok(r) => Ok(Self::new(&res, &r, session)),
-            Err(e) => Err(e)
+    async fn load_chunk(res: &InternalResult, chunk: &Chunk) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+        let headers;
+        match &res.chunk_headers {
+            Some(h) => headers = make_chunk_headers(&h).map_err(SnowflakeError::ChunkLoadingError)?,
+            None => {
+                match &res.qrmk {
+                    Some(k) => headers = default_chunk_headers(k.as_str()).map_err(SnowflakeError::ChunkLoadingError)?,
+                    None => return Err(SnowflakeError::ChunkLoadingError(anyhow!("Encryption key is missing")))
+                }
+            }
         }
-    }
 
-    // fn load_chunk(&self, chunk: Chunk) -> Result<Self::ReturnType, SnowflakeError> {
-    //     Self::ReturnType::new()
-    // }
+        let client = reqwest::Client::builder()
+            .gzip(true)
+            .deflate(true)
+            .default_headers(headers)
+            .build()
+            .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
+
+        let res = chunk.load::<Self>(&client, &res.rowtype).await?;
+        Ok(res)
+    }
 
 }
 
@@ -34,4 +50,22 @@ pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> Stri
         .collect();
     let path = components.join("/");
     format!("https://app.snowflake.com/{path}/#/compute/history/queries/{query_id}/detail")
+}
+
+pub(self) fn default_chunk_headers(encryption_key: &str) -> Result<HeaderMap, anyhow::Error> {
+    let mut headers = HeaderMap::with_capacity(3);
+    headers.append(USER_AGENT, concat!(env!("CARGO_PKG_NAME"), '/', env!("CARGO_PKG_VERSION")).parse()?);
+    headers.append("x-amz-server-side-encryption-customer-algorithm", HeaderValue::from_static("AES256"));
+    headers.append("x-amz-server-side-encryption-customer-key", encryption_key.parse()?);
+    Ok(headers)
+}
+
+pub(crate) fn make_chunk_headers(raw_headers: &HashMap<String, serde_json::Value>) -> Result<HeaderMap, anyhow::Error> {
+    let mut headers = HeaderMap::with_capacity(raw_headers.len());
+    for (k, v) in raw_headers.iter() {
+        let name = HeaderName::from_bytes(k.as_bytes()).unwrap();
+        let value: String = serde_json::from_value(v.clone())?;
+        headers.insert(name, value.parse()?);
+    }
+    Ok(headers)
 }

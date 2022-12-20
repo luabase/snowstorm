@@ -158,6 +158,8 @@ impl Snowstorm {
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
         let session_client = reqwest::Client::builder()
+            .gzip(true)
+            .deflate(true)
             .default_headers(session_headers)
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;

@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::types::{internal::InternalResult, row_type::RowType, value::{Value, ValueType}};
+use crate::responses::types::{row_type::RowType, value::{Value, ValueType}};
 
 use anyhow::anyhow;
 use chrono::{Duration, prelude::*};
@@ -9,7 +9,10 @@ pub trait QueryDeserializer: Sized {
 
     type ReturnType;
 
-    fn deserialize_rowset(res: &InternalResult) -> Result<Self::ReturnType, SnowflakeError>;
+    fn deserialize_rowset(
+        rowset: &Vec<Vec<serde_json::Value>>,
+        rowtype: &Vec<RowType>
+    ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
         let string;

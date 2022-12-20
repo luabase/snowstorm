@@ -11,11 +11,14 @@ categories = ["database"]
 
 [dependencies]
 anyhow = "1.0"
+async-compression = { version = "0.3.15", features = ["futures-io", "gzip"] }
+async-trait = "0.1.60"
 chrono = { version = "0.4", features = ["serde"] }
+futures = "0.3.25"
 hex = "0.4.3"
 log = "0.4"
 percent-encoding = "2.2"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["deflate", "gzip", "json", "stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_urlencoded = "0.7.1"

@@ -1,6 +1,6 @@
 use crate::errors::SnowflakeError;
 use crate::responses::QueryResult;
-use crate::responses::types::{data::DataResponse, error::ErrorResult};
+use crate::responses::types::{data::DataResponse, error::ErrorResult, internal::InternalResult};
 use crate::requests::QueryRequest;
 
 use anyhow::anyhow;
@@ -29,7 +29,7 @@ impl Session {
         }
     }
 
-    pub async fn execute<T: QueryResult>(&self, query: &str) -> Result<T, SnowflakeError> {
+    pub async fn execute<T: QueryResult + Send + Sync>(&self, query: &str) -> Result<T, SnowflakeError> {
         let now = Utc::now();
         let req = QueryRequest {
             async_exec: false,
@@ -75,15 +75,19 @@ impl Session {
             }
         }
 
-        let data = T::deserialize(res.data, self)
-            .map_err(|e| {
-                log::error!(
-                    "Failed to execute query {query} due to data deserialization error."
-                );
-                e
-            })?;
+        let internal: InternalResult = serde_json::from_value(res.data.clone())
+            .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
 
-        Ok(data)
+        let mut rowset = T::deserialize_rowset(&internal.rowset, &internal.rowtype)?;
+
+        if let Some(chunks) = internal.chunks.clone() {
+            for chunk in chunks {
+                let loaded: Vec<T::ReturnType> = T::load_chunk(&internal, &chunk).await?;
+                rowset.extend(&mut loaded.into_iter());
+            }
+        }
+
+        Ok(T::new(&internal, &rowset, self))
     }
 
     fn get_queries_url(&self, command: &str) -> String {
