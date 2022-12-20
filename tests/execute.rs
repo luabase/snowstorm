@@ -43,7 +43,7 @@ async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<VecResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+    let res = session.execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
     assert_eq!(res.rowset.len(), 10);
     Ok(())
 }
@@ -54,7 +54,7 @@ async fn execute_select_into_hashmap_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<HashMapResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
     assert_eq!(res.rowset.len(), 10);
     Ok(())
 }
@@ -65,7 +65,7 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<JsonMapResult>("SELECT * FROM ethereum_transactions LIMIT 10").await.unwrap();
+    let res = session.execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
     assert_eq!(res.rowset.len(), 10);
     Ok(())
 }
