@@ -1,7 +1,8 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use simple_logger;
-use snowstorm::{Snowstorm, errors::SnowflakeError, responses::result::HashMapResult, responses::types::Value};
+use snowstorm::{Snowstorm, errors::SnowflakeError};
+use snowstorm::responses::types::{result::HashMapResult, value::Value};
 
 #[tokio::main]
 async fn main() {

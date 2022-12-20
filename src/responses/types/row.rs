@@ -1,5 +1,4 @@
-use crate::responses::types::ValueType;
-
+use crate::responses::types::value::ValueType;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]

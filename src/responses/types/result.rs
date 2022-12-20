@@ -1,5 +1,6 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{deserializer::{QueryDeserializer, get_query_detail_url}, row::RowType, types::Value};
+use crate::responses::deserializer::{QueryDeserializer, get_query_detail_url};
+use crate::responses::types::{row::RowType, value::Value};
 use crate::session::Session;
 
 use serde::Deserialize;
@@ -19,7 +20,7 @@ pub struct InternalResult {
     pub rowtype: Vec<RowType>,
     pub rowset: Vec<Vec<serde_json::Value>>,
     pub query_id: String,
-    pub total: u64,
+    pub total: usize,
     pub qrmk: Option<String>,
     pub chunks: Option<Vec<Chunk>>
 }
@@ -31,7 +32,7 @@ pub struct VecResult {
     pub rowset: Vec<Vec<Value>>,
     pub query_id: String,
     pub query_detail_url: String,
-    pub total: u64,
+    pub total: usize,
     pub qrmk: Option<String>,
     pub chunks: Option<Vec<Chunk>>
 }
@@ -67,7 +68,7 @@ pub struct HashMapResult {
     pub rowset: Vec<HashMap<String, Value>>,
     pub query_id: String,
     pub query_detail_url: String,
-    pub total: u64,
+    pub total: usize,
     pub qrmk: Option<String>,
     pub chunks: Option<Vec<Chunk>>
 }
@@ -112,7 +113,7 @@ pub struct JsonMapResult {
     pub rowset: Vec<serde_json::Map<String, serde_json::Value>>,
     pub query_id: String,
     pub query_detail_url: String,
-    pub total: u64,
+    pub total: usize,
     pub qrmk: Option<String>,
     pub chunks: Option<Vec<Chunk>>
 }

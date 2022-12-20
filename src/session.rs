@@ -1,5 +1,6 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{data::DataResponse, deserializer::QueryDeserializer, error::ErrorResult};
+use crate::responses::deserializer::QueryDeserializer;
+use crate::responses::types::{data::DataResponse, error::ErrorResult};
 use crate::requests::QueryRequest;
 
 use anyhow::anyhow;

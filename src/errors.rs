@@ -1,4 +1,4 @@
-use crate::responses::error::ErrorResult;
+use crate::responses::types::error::ErrorResult;
 
 #[derive(thiserror::Error, Debug)]
 pub enum SnowflakeError {

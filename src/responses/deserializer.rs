@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::{result::InternalResult, row::RowType, types::{Value, ValueType}};
+use crate::responses::types::{result::InternalResult, row::RowType, value::{Value, ValueType}};
 use crate::session::Session;
 
 use anyhow::anyhow;

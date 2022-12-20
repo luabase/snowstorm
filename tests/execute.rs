@@ -1,6 +1,6 @@
 mod support;
 
-use snowstorm::{errors::SnowflakeError, responses::result::{HashMapResult, JsonMapResult, VecResult}};
+use snowstorm::{errors::SnowflakeError, responses::types::result::{HashMapResult, JsonMapResult, VecResult}};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]
@@ -44,7 +44,7 @@ async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session.execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
-    assert_eq!(res.rowset.len(), 10);
+    assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
 
@@ -55,7 +55,7 @@ async fn execute_select_into_hashmap_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
-    assert_eq!(res.rowset.len(), 10);
+    assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
 
@@ -66,7 +66,7 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session.execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
-    assert_eq!(res.rowset.len(), 10);
+    assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
 

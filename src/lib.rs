@@ -8,7 +8,7 @@ mod utils;
 use anyhow::anyhow;
 use errors::SnowflakeError;
 use requests::{DataRequest, LoginRequest, SessionParameters};
-use responses::{data::DataResponse, login::LoginResponse, result::VecResult};
+use responses::types::{data::DataResponse, login::LoginResponse, result::VecResult};
 use session::Session;
 use std::collections::HashMap;
 use reqwest::Url;
