@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::get_query_detail_url;
+use crate::responses::get_query_detail_url;
 use crate::session::Session;
 use serde::Deserialize;
 

@@ -1,6 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::types::{result::InternalResult, row::RowType, value::{Value, ValueType}};
-use crate::session::Session;
+use crate::responses::types::{internal::InternalResult, row_type::RowType, value::{Value, ValueType}};
 
 use anyhow::anyhow;
 use chrono::{Duration, prelude::*};
@@ -9,22 +8,6 @@ use std::collections::HashMap;
 pub trait QueryDeserializer: Sized {
 
     type ReturnType;
-
-    fn new(res: &InternalResult, rowset: &Self::ReturnType, session: &Session) -> Self;
-
-    // fn load_chunk(&self, chunk: Chunk) -> Result<Self::ReturnType, SnowflakeError> {
-    //     Self::ReturnType::new()
-    // }
-
-    fn deserialize(json: serde_json::Value, session: &Session) -> Result<Self, SnowflakeError> {
-        let res: InternalResult = serde_json::from_value(json.clone())
-            .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), json.to_string()))?;
-        let rowset = Self::deserialize_rowset(&res);
-        match rowset {
-            Ok(r) => Ok(Self::new(&res, &r, session)),
-            Err(e) => Err(e)
-        }
-    }
 
     fn deserialize_rowset(res: &InternalResult) -> Result<Self::ReturnType, SnowflakeError>;
 
@@ -280,79 +263,6 @@ pub trait QueryDeserializer: Sized {
         }
     }
 
-    #[cfg(integer128)]
-    fn serialize_value(val: &Value) -> Result<serde_json::Value, serde_json::Error> {
-        match val {
-            Value::Binary(v) => serde_json::to_value(&v),
-            Value::Boolean(v) => serde_json::to_value(&v),
-            Value::Number(x) => serde_json::to_value(&x),
-            Value::Float(v) => serde_json::to_value(&v),
-            Value::String(v) => serde_json::to_value(&v),
-            Value::NaiveDate(v) => serde_json::to_value(&v),
-            Value::NaiveTime(v) => serde_json::to_value(&v),
-            Value::NaiveDateTime(v) => serde_json::to_value(&v),
-            Value::DateTimeUTC(v) => serde_json::to_value(&v),
-            Value::DateTime(v) => serde_json::to_value(&v),
-            Value::HashMap(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Vec(v) => serde_json::to_value(&v),
-            Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Variant(v) => serde_json::to_value(&v),
-            Value::Unsupported(v) => serde_json::to_value(&v),
-            Value::Nullable(v) => {
-                match v {
-                    Some(x) => Self::serialize_value(x),
-                    None => serde_json::to_value::<Option<String>>(None)
-                }
-            },
-        }
-    }
-
-    #[cfg(not(integer128))]
-    fn serialize_value(val: &Value) -> Result<serde_json::Value, serde_json::Error> {
-        match val {
-            Value::Binary(v) => serde_json::to_value(&v),
-            Value::Boolean(v) => serde_json::to_value(&v),
-            Value::Number(x) => serde_json::to_value(&x.to_string()),
-            Value::Float(v) => serde_json::to_value(&v),
-            Value::String(v) => serde_json::to_value(&v),
-            Value::NaiveDate(v) => serde_json::to_value(&v),
-            Value::NaiveTime(v) => serde_json::to_value(&v),
-            Value::NaiveDateTime(v) => serde_json::to_value(&v),
-            Value::DateTimeUTC(v) => serde_json::to_value(&v),
-            Value::DateTime(v) => serde_json::to_value(&v),
-            Value::HashMap(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Vec(v) => serde_json::to_value(&v),
-            Value::Geography(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Geometry(v) => serde_json::to_value(Self::to_json_map(v)),
-            Value::Variant(v) => serde_json::to_value(&v),
-            Value::Unsupported(v) => serde_json::to_value(&v),
-            Value::Nullable(v) => {
-                match v {
-                    Some(x) => Self::serialize_value(x),
-                    None => serde_json::to_value::<Option<String>>(None)
-                }
-            },
-        }
-    }
-
-    fn to_json_map(m: &HashMap<String, serde_json::Value>) -> String {
-        let value = serde_json::to_value(m);
-        match value {
-            Ok(v) => serde_json::to_string(&v).unwrap_or("{}".to_owned()),
-            Err(e) => e.to_string()
-        }
-    }
-
-}
-
-pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> String {
-    let components: Vec<String> = [session.region.clone(), Some(session.account.clone())]
-        .into_iter()
-        .filter_map(|x| x)
-        .collect();
-    let path = components.join("/");
-    format!("https://app.snowflake.com/{path}/#/compute/history/queries/{query_id}/detail")
 }
 
 pub(crate) fn handle_null_value(row_type: &RowType) -> Result<Value, SnowflakeError> {

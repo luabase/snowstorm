@@ -1,6 +1,7 @@
 mod support;
 
-use snowstorm::{errors::SnowflakeError, responses::types::result::{HashMapResult, JsonMapResult, VecResult}};
+use snowstorm::errors::SnowflakeError;
+use snowstorm::responses::result::{hashmap::HashMapResult, jsonmap::JsonMapResult, vec::VecResult};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]

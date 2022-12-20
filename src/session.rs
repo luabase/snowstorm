@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::QueryDeserializer;
+use crate::responses::QueryResult;
 use crate::responses::types::{data::DataResponse, error::ErrorResult};
 use crate::requests::QueryRequest;
 
@@ -29,7 +29,7 @@ impl Session {
         }
     }
 
-    pub async fn execute<T: QueryDeserializer>(&self, query: &str) -> Result<T, SnowflakeError> {
+    pub async fn execute<T: QueryResult>(&self, query: &str) -> Result<T, SnowflakeError> {
         let now = Utc::now();
         let req = QueryRequest {
             async_exec: false,
