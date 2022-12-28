@@ -2,6 +2,7 @@ pub mod binary;
 pub mod boolean;
 pub mod datetime;
 pub mod datetime_utc;
+pub(self) mod epoch;
 pub mod float;
 pub mod hashmap;
 pub mod integer;
@@ -107,16 +108,31 @@ pub trait QueryDeserializer: Sized {
 
         let row_type = RowType::from_arrow_field(field);
 
-        let value_type;
-        match row_type.value_type() {
-            ValueType::Nullable(v) => value_type = *v,
-            _ => value_type = row_type.value_type(),
-        }
+        let value_type = match row_type.value_type() {
+            ValueType::Nullable(v) => *v,
+            _ => row_type.value_type(),
+        };
 
         match value_type {
             ValueType::Boolean => boolean_from_arrow(column, field),
             ValueType::Integer => integer_from_arrow(column, field),
-            ValueType::Float => float_from_arrow(column, field),
+            ValueType::Float => match &field.data_type {
+                arrow2::datatypes::DataType::Int8 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::UInt8 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::Int16 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::UInt16 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::Int32 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::UInt32 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::Int64 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::UInt64 => integer_from_arrow(column, field),
+                arrow2::datatypes::DataType::Float16 => float_from_arrow(column, field),
+                arrow2::datatypes::DataType::Float32 => float_from_arrow(column, field),
+                arrow2::datatypes::DataType::Float64 => float_from_arrow(column, field),
+                x => Err(SnowflakeError::new_deserialization_error_with_field(
+                    anyhow!("Invalid float data type {:?}", x),
+                    field.name.clone(),
+                )),
+            },
             ValueType::String => string_from_arrow(column, field),
             ValueType::Binary => binary_from_arrow(column, field),
             ValueType::NaiveDate => naive_date_from_arrow(column, field),

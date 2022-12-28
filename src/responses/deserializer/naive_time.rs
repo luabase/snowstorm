@@ -29,36 +29,25 @@ pub(super) fn from_arrow(
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
-    use crate::utils::until_err;
     use arrow2::array::PrimitiveArray;
 
-    let mut err = Ok(());
-    let downcasted = column.as_any().downcast_ref::<PrimitiveArray<f64>>().unwrap();
-    let res: Vec<Value> = downcasted
+    let downcasted = column.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
+    downcasted
         .iter()
-        .map(|x| {
-            let value;
-            match x {
-                Some(x) => {
-                    let nanos = (*x * 1_000_000_000.0).round() as i64;
-                    value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
+        .map(|e| match e {
+            Some(value) => {
+                let nanos = *value * 1000;
+                let value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
+
+                if field.is_nullable {
+                    let boxed = Box::new(Value::NaiveTime(value));
+                    Ok(Value::Nullable(Some(boxed)))
                 }
-                None => return null_from_arrow(field),
+                else {
+                    Ok(Value::NaiveTime(value))
+                }
             }
-
-            if field.is_nullable {
-                let boxed = Box::new(Value::NaiveTime(value));
-                Ok(Value::Nullable(Some(boxed)))
-            }
-            else {
-                Ok(Value::NaiveTime(value))
-            }
+            None => null_from_arrow(field),
         })
-        .scan(&mut err, until_err)
-        .collect();
-
-    match err {
-        Ok(..) => Ok(res),
-        Err(e) => Err(e),
-    }
+        .collect()
 }

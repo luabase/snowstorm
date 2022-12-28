@@ -29,33 +29,24 @@ pub(super) fn from_arrow(
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
-    use crate::utils::until_err;
     use arrow2::array::PrimitiveArray;
 
-    let mut err = Ok(());
     let downcasted = column.as_any().downcast_ref::<PrimitiveArray<i32>>().unwrap();
-    let res: Vec<Value> = downcasted
+    downcasted
         .iter()
-        .map(|x| {
-            let value;
-            match x {
-                Some(x) => value = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(*x as i64),
-                None => return null_from_arrow(field),
-            }
+        .map(|e| match e {
+            Some(value) => {
+                let value = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(*value as i64);
 
-            if field.is_nullable {
-                let boxed = Box::new(Value::NaiveDate(value));
-                Ok(Value::Nullable(Some(boxed)))
+                if field.is_nullable {
+                    let boxed = Box::new(Value::NaiveDate(value));
+                    Ok(Value::Nullable(Some(boxed)))
+                }
+                else {
+                    Ok(Value::NaiveDate(value))
+                }
             }
-            else {
-                Ok(Value::NaiveDate(value))
-            }
+            None => null_from_arrow(field),
         })
-        .scan(&mut err, until_err)
-        .collect();
-
-    match err {
-        Ok(..) => Ok(res),
-        Err(e) => Err(e),
-    }
+        .collect()
 }

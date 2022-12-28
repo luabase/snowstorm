@@ -9,7 +9,7 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
     let pair = json.to_string();
     let timezone_str;
     let offset_str;
-    match pair.split_once(" ") {
+    match pair.split_once(' ') {
         Some(p) => (timezone_str, offset_str) = p,
         None => {
             return Err(SnowflakeError::new_deserialization_error_with_field_and_value(
@@ -67,33 +67,76 @@ pub(super) fn from_arrow(
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
-    use crate::utils::until_err;
-    use arrow2::array::PrimitiveArray;
+    use arrow2::array::StructArray;
+    use arrow2::scalar::PrimitiveScalar;
 
-    let mut err = Ok(());
-    let downcasted = column.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
-    let res: Vec<Value> = downcasted
+    let _downcasted = column.as_any().downcast_ref::<StructArray>().unwrap();
+    _downcasted
         .iter()
-        .map(|x| {
-            let value;
-            match x {
-                Some(x) => value = i128::from(*x),
-                None => return null_from_arrow(field),
-            }
+        .map(|e| match e {
+            Some(value) => {
+                let scalar = match value[0].as_any().downcast_ref::<PrimitiveScalar<i64>>() {
+                    Some(d) => d.value(),
+                    None => {
+                        return Err(SnowflakeError::new_deserialization_error_with_field(
+                            anyhow!("Could not deserialize epoch {:?} as i64", field.data_type),
+                            field.name.clone(),
+                        ))
+                    }
+                };
 
-            if field.is_nullable {
-                let boxed = Box::new(Value::Integer(value));
-                Ok(Value::Nullable(Some(boxed)))
+                let offset = match value[2].as_any().downcast_ref::<PrimitiveScalar<i32>>() {
+                    Some(d) => match d.value() {
+                        Some(dd) => dd,
+                        None => {
+                            return Err(SnowflakeError::new_deserialization_error_with_field(
+                                anyhow!("Got null timezone offset"),
+                                field.name.clone(),
+                            ))
+                        }
+                    },
+                    None => {
+                        return Err(SnowflakeError::new_deserialization_error_with_field(
+                            anyhow!("Could not deserialize timezone offset {:?} as i64", field.data_type),
+                            field.name.clone(),
+                        ))
+                    }
+                };
+
+                match scalar {
+                    Some(timestamp) => {
+                        let timezone_opt = FixedOffset::east_opt((*offset - 1440) * 60);
+                        let timezone;
+                        match timezone_opt {
+                            Some(tz) => timezone = tz,
+                            None => {
+                                return Err(SnowflakeError::new_deserialization_error_with_field_and_value(
+                                    anyhow!("Invalid timezone offset {offset}"),
+                                    field.name.clone(),
+                                    timestamp.to_string(),
+                                ))
+                            }
+                        }
+
+                        let nanos = *timestamp * 1_000_000_000;
+                        let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
+                        let datetime = DateTime::<FixedOffset>::from_local(naive, timezone);
+
+                        if field.is_nullable {
+                            let boxed = Box::new(Value::DateTime(datetime));
+                            Ok(Value::Nullable(Some(boxed)))
+                        }
+                        else {
+                            Ok(Value::DateTime(datetime))
+                        }
+                    }
+                    None => Err(SnowflakeError::new_deserialization_error_with_field(
+                        anyhow!("Encountered null epoch value"),
+                        field.name.clone(),
+                    )),
+                }
             }
-            else {
-                Ok(Value::Integer(value))
-            }
+            None => null_from_arrow(field),
         })
-        .scan(&mut err, until_err)
-        .collect();
-
-    match err {
-        Ok(..) => Ok(res),
-        Err(e) => Err(e),
-    }
+        .collect()
 }

@@ -20,25 +20,27 @@ pub(super) fn from_arrow(
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use crate::utils::until_err;
-    use arrow2::array::PrimitiveArray;
+    use arrow2::array::Utf8Array;
 
     let mut err = Ok(());
-    let downcasted = column.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+    let downcasted = column.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
     let res: Vec<Value> = downcasted
         .iter()
         .map(|x| {
-            let value;
-            match x {
-                Some(x) => value = i128::from(*x),
+            let value = match x {
+                Some(x) => x,
                 None => return null_from_arrow(field),
-            }
+            };
+
+            let json = serde_json::from_str(value)
+                .map_err(|e| SnowflakeError::new_deserialization_error_with_field(e.into(), field.name.clone()))?;
 
             if field.is_nullable {
-                let boxed = Box::new(Value::Integer(value));
+                let boxed = Box::new(Value::Variant(json));
                 Ok(Value::Nullable(Some(boxed)))
             }
             else {
-                Ok(Value::Integer(value))
+                Ok(Value::Variant(json))
             }
         })
         .scan(&mut err, until_err)

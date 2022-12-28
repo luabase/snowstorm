@@ -39,7 +39,6 @@ impl QueryDeserializer for HashMapResult {
 
     #[cfg(feature = "arrow")]
     fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
-        use anyhow::anyhow;
         use arrow2::io::ipc::read;
 
         let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
@@ -51,10 +50,11 @@ impl QueryDeserializer for HashMapResult {
 
         let mut stream = read::StreamReader::new(&mut stream, metadata, None);
 
+        let mut rows: Vec<Self::ReturnType> = vec![];
         if let Some(x) = stream.next() {
             match x {
                 Ok(read::StreamState::Some(chunk)) => {
-                    let mut rows: Vec<Self::ReturnType> = vec![Self::ReturnType::new(); chunk.len()];
+                    rows = vec![Self::ReturnType::new(); chunk.len()];
                     for (idx, column) in chunk.columns().iter().enumerate() {
                         let field = &schema.fields[idx];
                         let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
@@ -62,23 +62,19 @@ impl QueryDeserializer for HashMapResult {
                             rows[i].insert(field.name.clone(), c.clone());
                         }
                     }
-
-                    for r in rows {
-                        println!("BLABLA {:?}", r);
-                    }
                 }
                 Ok(read::StreamState::Waiting) => (),
                 Err(e) => return Err(SnowflakeError::new_deserialization_error(e.into())),
             }
         };
 
-        Err(SnowflakeError::GeneralError(anyhow!("Bla")))
+        Ok(rows)
     }
 }
 
 impl QuerySerializer for HashMapResult {}
 
-impl<'a> QueryResult for HashMapResult {
+impl QueryResult for HashMapResult {
     fn new(res: &InternalResult, rowset: &Vec<Self::ReturnType>, session: &Session) -> Self {
         Self {
             rowtype: res.rowtype.clone(),
