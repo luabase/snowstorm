@@ -20,8 +20,6 @@ use crate::responses::types::{
 };
 
 use anyhow::anyhow;
-use chrono::{prelude::*, Duration};
-use std::collections::HashMap;
 
 #[cfg(feature = "arrow")]
 use arrow2;
@@ -35,7 +33,7 @@ pub trait QueryDeserializer: Sized {
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(rowset: &String, rowtype: &Vec<RowType>) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
+    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
         use crate::responses::deserializer::binary::from_json as binary_from_json;
@@ -53,17 +51,14 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::variant::from_json as variant_from_json;
         use crate::responses::deserializer::vec::from_json as vec_from_json;
 
-        let string;
-        match value.as_str() {
-            Some(v) => string = v,
-            None => return null_from_json(value, &row_type),
+        if value.is_null() {
+            return null_from_json(row_type);
         }
 
-        let value_type;
-        match row_type.value_type() {
-            ValueType::Nullable(v) => value_type = *v,
-            _ => value_type = row_type.value_type(),
-        }
+        let value_type = match row_type.value_type() {
+            ValueType::Nullable(v) => *v,
+            _ => row_type.value_type(),
+        };
 
         match value_type {
             ValueType::Boolean => boolean_from_json(value, row_type),
@@ -93,15 +88,9 @@ pub trait QueryDeserializer: Sized {
 
     #[cfg(feature = "arrow")]
     fn deserialize_arrow_column(
-        column: &Box<dyn arrow2::array::Array>,
+        column: &dyn arrow2::array::Array,
         field: &arrow2::datatypes::Field,
     ) -> Result<Vec<Value>, SnowflakeError> {
-        use crate::utils::until_err;
-        use arrow2::array::{BinaryArray, BooleanArray, ListArray, PrimitiveArray, StructArray, Utf8Array};
-        use arrow2::datatypes::{PhysicalType, PrimitiveType};
-        use arrow2::scalar::{PrimitiveScalar, Scalar};
-        use arrow2_convert::deserialize::{arrow_array_deserialize_iterator, TryIntoCollection};
-
         use crate::responses::deserializer::binary::from_arrow as binary_from_arrow;
         use crate::responses::deserializer::boolean::from_arrow as boolean_from_arrow;
         use crate::responses::deserializer::datetime::from_arrow as datetime_from_arrow;
@@ -112,7 +101,6 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::naive_date::from_arrow as naive_date_from_arrow;
         use crate::responses::deserializer::naive_datetime::from_arrow as naive_datetime_from_arrow;
         use crate::responses::deserializer::naive_time::from_arrow as naive_time_from_arrow;
-        use crate::responses::deserializer::null::from_arrow as null_from_arrow;
         use crate::responses::deserializer::string::from_arrow as string_from_arrow;
         use crate::responses::deserializer::variant::from_arrow as variant_from_arrow;
         use crate::responses::deserializer::vec::from_arrow as vec_from_arrow;

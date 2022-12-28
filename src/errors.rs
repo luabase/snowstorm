@@ -17,33 +17,47 @@ pub enum SnowflakeError {
 }
 
 impl SnowflakeError {
-
     pub(crate) fn new_deserialization_error(err: anyhow::Error) -> Self {
         Self::DeserializationError(err, None)
     }
 
+    pub(crate) fn new_deserialization_error_with_field(err: anyhow::Error, field: String) -> Self {
+        Self::DeserializationError(
+            err,
+            Some(DeserializationErrorContext {
+                field: Some(field),
+                value: None,
+            }),
+        )
+    }
+
     pub(crate) fn new_deserialization_error_with_value(err: anyhow::Error, value: String) -> Self {
-        Self::DeserializationError(err, Some(DeserializationErrorContext {
-            field: None,
-            value: Some(value)
-        }))
+        Self::DeserializationError(
+            err,
+            Some(DeserializationErrorContext {
+                field: None,
+                value: Some(value),
+            }),
+        )
     }
 
     pub(crate) fn new_deserialization_error_with_field_and_value(
         err: anyhow::Error,
         field: String,
-        value: String
+        value: String,
     ) -> Self {
-        Self::DeserializationError(err, Some(DeserializationErrorContext {
-            field: Some(field),
-            value: Some(value)
-        }))
+        Self::DeserializationError(
+            err,
+            Some(DeserializationErrorContext {
+                field: Some(field),
+                value: Some(value),
+            }),
+        )
     }
-
 }
 
 #[derive(Debug)]
 pub struct DeserializationErrorContext {
     pub field: Option<String>,
-    pub value: Option<String>
+    pub value: Option<String>,
 }

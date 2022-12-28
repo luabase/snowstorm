@@ -33,7 +33,7 @@ impl QueryDeserializer for VecResult {
     }
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(rowset: &String, rowtype: &Vec<RowType>) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         use anyhow::anyhow;
         use arrow2::io::ipc::read;
         use std::thread;

@@ -28,8 +28,8 @@ impl QueryDeserializer for JsonMapResult {
                 let deserialized = Self::deserialize_value(v, t);
                 match deserialized {
                     Ok(v) => {
-                        let serialized = Self::serialize_value(&v)
-                            .map_err(|e| SnowflakeError::SerializationError(e.into()))?;
+                        let serialized =
+                            Self::serialize_value(&v).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
                         mapping.insert(t.name.clone(), serialized);
                     }
                     Err(e) => return Err(e),
@@ -43,21 +43,17 @@ impl QueryDeserializer for JsonMapResult {
     }
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(
-        rowset: &String,
-        rowtype: &Vec<RowType>,
-    ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         use anyhow::anyhow;
         use arrow2::io::ipc::read;
         use std::thread;
         use std::time::Duration;
 
-        let data = base64::decode(rowset)
-            .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+        let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
         let mut stream: &[u8] = &data;
 
-        let metadata = read::read_stream_metadata(&mut stream)
-            .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+        let metadata =
+            read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
         let mut stream = read::StreamReader::new(&mut stream, metadata, None);
         let mut idx = 0;
         loop {

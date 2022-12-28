@@ -1,10 +1,6 @@
 use crate::errors::SnowflakeError;
-use crate::responses::types::{
-    row_type::RowType,
-    value::{Value, ValueType},
-};
+use crate::responses::types::{row_type::RowType, value::Value};
 
-use anyhow::anyhow;
 use chrono::{prelude::*, Duration};
 use serde_json;
 
@@ -29,7 +25,7 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
 
 #[cfg(feature = "arrow")]
 pub(super) fn from_arrow(
-    column: &Box<dyn arrow2::array::Array>,
+    column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
@@ -44,7 +40,7 @@ pub(super) fn from_arrow(
             let value;
             match x {
                 Some(x) => value = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(*x as i64),
-                None => return null_from_arrow(column, field),
+                None => return null_from_arrow(field),
             }
 
             if field.is_nullable {
