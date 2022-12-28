@@ -6,7 +6,8 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct InternalResult {
     pub rowtype: Vec<RowType>,
-    pub rowset: Vec<Vec<serde_json::Value>>,
+    pub rowset: Option<Vec<Vec<serde_json::Value>>>,
+    pub rowset_base64: Option<String>,
     pub query_id: String,
     pub total: usize,
     pub chunks: Option<Vec<Chunk>>,

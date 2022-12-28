@@ -7,17 +7,13 @@ pub struct DataRequest<S> {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub struct SessionParameters {
-    pub timezone: Option<String>
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct LoginRequest<'a> {
     pub account_name: &'a str,
     pub login_name: &'a str,
     pub password: &'a str,
-    pub session_parameters: Option<SessionParameters>
+    pub client_app_id: &'a str,
+    pub client_app_version: &'a str,
+    pub session_parameters: Option<serde_json::Value>
 }
 
 #[derive(Debug, Serialize)]

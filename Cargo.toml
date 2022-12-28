@@ -11,8 +11,10 @@ categories = ["database"]
 
 [dependencies]
 anyhow = "1.0"
+arrow2 = { version = "0.15.0", features = ["io_ipc", "io_json"], optional = true }
 async-compression = { version = "0.3.15", features = ["futures-io", "gzip"] }
 async-trait = "0.1"
+base64 = "0.20.0"
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3.25"
 hex = "0.4.3"
@@ -31,6 +33,9 @@ uuid = { version = "1.2", features = ["v4", "fast-rng", "macro-diagnostics"] }
 rotenv = "0.15"
 rotenv_codegen = "0.15"
 simple_logger = "4.0"
+
+[features]
+arrow = ["dep:arrow2"]
 
 [profile.release]
 codegen-units = 1

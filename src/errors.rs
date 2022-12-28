@@ -18,6 +18,10 @@ pub enum SnowflakeError {
 
 impl SnowflakeError {
 
+    pub(crate) fn new_deserialization_error(err: anyhow::Error) -> Self {
+        Self::DeserializationError(err, None)
+    }
+
     pub(crate) fn new_deserialization_error_with_value(err: anyhow::Error, value: String) -> Self {
         Self::DeserializationError(err, Some(DeserializationErrorContext {
             field: None,

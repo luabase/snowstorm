@@ -7,13 +7,14 @@ mod utils;
 
 use anyhow::anyhow;
 use errors::SnowflakeError;
-use requests::{DataRequest, LoginRequest, SessionParameters};
+use requests::{DataRequest, LoginRequest};
 use responses::result::vec::VecResult;
 use responses::types::{data::DataResponse, login::LoginResponse};
+use serde_json::json;
 use session::Session;
 use std::collections::HashMap;
 use reqwest::Url;
-use reqwest::header::{HeaderMap, CONTENT_TYPE, AUTHORIZATION, ACCEPT, USER_AGENT};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use utils::urldecode_some;
 
 
@@ -103,6 +104,7 @@ impl Snowstorm {
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
+            // .proxy(reqwest::Proxy::https("http://127.0.0.1:9090").unwrap())
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
@@ -113,9 +115,12 @@ impl Snowstorm {
                 account_name,
                 login_name: &self.user,
                 password: &self.password,
-                session_parameters: Some(SessionParameters {
-                    timezone: Some("UTC".to_owned())
-                })
+                client_app_id: "PythonConnector",
+                client_app_version: "2.9.0",
+                session_parameters: Some(json!({
+                    "TIMEZONE": "Etc/GMT",
+                    "CLIENT_PREFETCH_THREADS": 4
+                }))
             }
         };
 
@@ -161,6 +166,7 @@ impl Snowstorm {
             .gzip(true)
             .deflate(true)
             .default_headers(session_headers)
+            // .proxy(reqwest::Proxy::https("http://127.0.0.1:9090").unwrap())
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 

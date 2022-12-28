@@ -6,7 +6,7 @@ use crate::requests::QueryRequest;
 use anyhow::anyhow;
 use chrono::prelude::*;
 use serde_json::json;
-use std::str;
+use std::{str, cell::Cell};
 
 #[derive(Debug)]
 pub struct Session {
@@ -14,7 +14,7 @@ pub struct Session {
     pub(crate) host: String,
     pub(crate) account: String,
     pub(crate) region: Option<String>,
-    pub(crate) sequence_counter: u32
+    pub(crate) sequence_counter: Cell<u32>
 }
 
 impl Session {
@@ -25,7 +25,7 @@ impl Session {
             host: host.to_owned(),
             account: account.to_owned(),
             region: region.map(str::to_string),
-            sequence_counter: 1
+            sequence_counter: Cell::new(1)
         }
     }
 
@@ -33,11 +33,15 @@ impl Session {
         let now = Utc::now();
         let req = QueryRequest {
             async_exec: false,
-            parameters: Some(json!({"TIMESTAMP": "UTC"})),
+            parameters: Some(json!({
+                "PYTHON_CONNECTOR_QUERY_RESULT_FORMAT": Self::result_format()
+            })),
             query_submission_time: now.timestamp_millis(),
-            sequence_id: self.sequence_counter,
+            sequence_id: self.sequence_counter.get(),
             sql_text: query
         };
+
+        self.sequence_counter.set(self.sequence_counter.get() + 1);
 
         let json = self.client
             .post(&self.get_queries_url("query-request"))
@@ -78,7 +82,30 @@ impl Session {
         let internal: InternalResult = serde_json::from_value(res.data.clone())
             .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
 
-        let mut rowset = T::deserialize_rowset(&internal.rowset, &internal.rowtype)?;
+        let mut rowset;
+        if let Some(r) = &internal.rowset_base64 {
+            if cfg!(feature = "arrow") {
+                rowset = T::deserialize_rowset64(&r, &internal.rowtype)?;
+            }
+            else {
+                return Err(
+                    SnowflakeError::GeneralError(
+                        anyhow!("Cannot deserialize Arrow format since arrow feature is disabled")
+                    )
+                );
+            }
+        }
+        else if let Some(r) = &internal.rowset {
+            rowset = T::deserialize_rowset(&r, &internal.rowtype)?;
+        }
+        else {
+            return Err(
+                SnowflakeError::new_deserialization_error_with_value(
+                    anyhow!("Missing rowsetBase64 or rowset for Arrow format"),
+                    res.data.to_string()
+                )
+            );
+        }
 
         if let Some(chunks) = internal.chunks.clone() {
             for chunk in chunks {
@@ -98,4 +125,12 @@ impl Session {
         url
     }
 
+    fn result_format() -> &'static str {
+        if cfg!(feature = "arrow") {
+            "ARROW"
+        }
+        else {
+            "JSON"
+        }
+    }
 }
