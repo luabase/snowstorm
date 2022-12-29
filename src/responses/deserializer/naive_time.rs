@@ -1,4 +1,5 @@
 use crate::errors::SnowflakeError;
+use crate::responses::deserializer::epoch::get_json_time_scale;
 use crate::responses::types::{row_type::RowType, value::Value};
 
 use chrono::{prelude::*, Duration};
@@ -12,7 +13,9 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
             json.to_string(),
         )
     })?;
-    let nanos = (parsed * 1_000_000_000.0).round() as i64;
+
+    let scale = get_json_time_scale(row_type)?;
+    let nanos = (parsed * scale).round() as i64;
     let time = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
     if row_type.nullable {
         let boxed = Box::new(Value::NaiveTime(time));
@@ -28,6 +31,7 @@ pub(super) fn from_arrow(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
+    use crate::responses::deserializer::epoch::get_arrow_time_scale;
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use arrow2::array::PrimitiveArray;
 
@@ -36,7 +40,8 @@ pub(super) fn from_arrow(
         .iter()
         .map(|e| match e {
             Some(value) => {
-                let nanos = *value * 1000;
+                let scale = get_arrow_time_scale(field)?;
+                let nanos = *value * scale;
                 let value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
 
                 if field.is_nullable {
