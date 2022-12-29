@@ -24,13 +24,24 @@ use anyhow::anyhow;
 
 #[cfg(feature = "arrow")]
 use arrow2;
+#[cfg(feature = "arrow")]
+use arrow2::array::Array as ArrowArray;
+#[cfg(feature = "arrow")]
+use arrow2::chunk::Chunk as ArrowChunk;
+#[cfg(feature = "arrow")]
+use arrow2::datatypes::Field as ArrowField;
+#[cfg(feature = "arrow")]
+use arrow2::io::ipc::read::StreamMetadata as ArrowStreamMetadata;
+
+#[cfg(feature = "arrow")]
+type ArrowMetadataWithChunks = (ArrowStreamMetadata, Option<ArrowChunk<Box<dyn ArrowArray>>>);
 
 pub trait QueryDeserializer: Sized {
     type ReturnType;
 
     fn deserialize_rowset(
-        rowset: &Vec<Vec<serde_json::Value>>,
-        rowtype: &Vec<RowType>,
+        rowset: &[Vec<serde_json::Value>],
+        rowtype: &[RowType],
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     #[cfg(feature = "arrow")]
@@ -88,15 +99,7 @@ pub trait QueryDeserializer: Sized {
     }
 
     #[cfg(feature = "arrow")]
-    fn get_arrow_stream_from_rowset64(
-        rowset: &str,
-    ) -> Result<
-        (
-            arrow2::io::ipc::read::StreamMetadata,
-            Option<arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>>,
-        ),
-        SnowflakeError,
-    > {
+    fn get_arrow_stream_from_rowset64(rowset: &str) -> Result<ArrowMetadataWithChunks, SnowflakeError> {
         use arrow2::io::ipc::read;
 
         let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
@@ -105,7 +108,7 @@ pub trait QueryDeserializer: Sized {
         let metadata =
             read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
 
-        let mut stream = read::StreamReader::new(&mut stream, metadata, None);
+        let mut stream = read::StreamReader::new(&mut stream, metadata.clone(), None);
 
         if let Some(x) = stream.next() {
             match x {
@@ -120,10 +123,7 @@ pub trait QueryDeserializer: Sized {
     }
 
     #[cfg(feature = "arrow")]
-    fn deserialize_arrow_column(
-        column: &dyn arrow2::array::Array,
-        field: &arrow2::datatypes::Field,
-    ) -> Result<Vec<Value>, SnowflakeError> {
+    fn deserialize_arrow_column(column: &dyn ArrowArray, field: &ArrowField) -> Result<Vec<Value>, SnowflakeError> {
         use crate::responses::deserializer::binary::from_arrow as binary_from_arrow;
         use crate::responses::deserializer::boolean::from_arrow as boolean_from_arrow;
         use crate::responses::deserializer::datetime::from_arrow as datetime_from_arrow;

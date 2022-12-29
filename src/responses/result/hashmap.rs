@@ -20,8 +20,8 @@ impl QueryDeserializer for HashMapResult {
     type ReturnType = HashMap<String, Value>;
 
     fn deserialize_rowset(
-        rowset: &Vec<Vec<serde_json::Value>>,
-        rowtype: &Vec<RowType>,
+        rowset: &[Vec<serde_json::Value>],
+        rowtype: &[RowType],
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         rowset
             .iter()
@@ -59,10 +59,10 @@ impl QueryDeserializer for HashMapResult {
 impl QuerySerializer for HashMapResult {}
 
 impl QueryResult for HashMapResult {
-    fn new(res: &InternalResult, rowset: &Vec<Self::ReturnType>, session: &Session) -> Self {
+    fn new(res: &InternalResult, rowset: &[Self::ReturnType], session: &Session) -> Self {
         Self {
             rowtype: res.rowtype.clone(),
-            rowset: rowset.clone(),
+            rowset: rowset.to_vec(),
             query_id: res.query_id.clone(),
             query_detail_url: get_query_detail_url(session, &res.query_id.clone()),
             total: res.total,

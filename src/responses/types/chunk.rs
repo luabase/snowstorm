@@ -20,7 +20,7 @@ impl Chunk {
     pub(crate) async fn load<T: QueryResult>(
         &self,
         client: &reqwest::Client,
-        rowtype: &Vec<RowType>
+        rowtype: &[RowType]
     ) -> Result<Vec<T::ReturnType>, SnowflakeError> {
 
         let req = client
@@ -50,7 +50,7 @@ impl Chunk {
             let mut data = String::new();
             decoder.read_to_string(&mut data).await
                 .map_err(|e| SnowflakeError::ChunkLoadingError(e.into()))?;
-            text = "[".to_owned() + &data + &"]".to_owned();
+            text = "[".to_owned() + &data + "]";
         }
         else {
             text = body

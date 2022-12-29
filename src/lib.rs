@@ -85,9 +85,9 @@ impl Snowstorm {
         let warehouse = query.get("warehouse").map(|x| x.to_owned());
 
         Ok(Snowstorm {
-            account: account.to_owned(),
-            password: password.to_owned(),
-            user: user.to_owned(),
+            account,
+            password,
+            user,
             role,
             database,
             schema,
@@ -108,7 +108,7 @@ impl Snowstorm {
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
-        let (account_name, region) = &self.account.split_once(".").unwrap_or((&self.account, ""));
+        let (account_name, region) = &self.account.split_once('.').unwrap_or((&self.account, ""));
 
         let req = DataRequest {
             data: LoginRequest {
@@ -160,7 +160,7 @@ impl Snowstorm {
             })?;
 
         let session_headers = Snowstorm::get_headers(Some(data.token.as_str()))
-            .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
+            .map_err(SnowflakeError::GeneralError)?;
 
         let session_client = reqwest::Client::builder()
             .gzip(true)
@@ -173,32 +173,24 @@ impl Snowstorm {
         let session = Session::new(
             session_client,
             &self.get_host(),
-            &account_name,
-            (!region.is_empty()).then(|| *region)
+            account_name,
+            (!region.is_empty()).then_some(*region)
         );
 
         if let Some(role) = &self.role {
-            if let Err(e) = session.execute::<VecResult>(&format!("USE ROLE {role}")).await {
-                return Err(e)
-            }
+            _ = session.execute::<VecResult>(&format!("USE ROLE {role}")).await?
         }
 
         if let Some(database) = &self.database {
-            if let Err(e) = session.execute::<VecResult>(&format!("USE DATABASE {database}")).await {
-                return Err(e)
-            }
+            _ = session.execute::<VecResult>(&format!("USE DATABASE {database}")).await?
         }
 
         if let Some(schema) = &self.schema {
-            if let Err(e) = session.execute::<VecResult>(&format!("USE SCHEMA {schema}")).await {
-                return Err(e)
-            }
+            _ = session.execute::<VecResult>(&format!("USE SCHEMA {schema}")).await?
         }
 
         if let Some(warehouse) = &self.warehouse {
-            if let Err(e) = session.execute::<VecResult>(&format!("USE WAREHOUSE {warehouse}")).await {
-                return Err(e)
-            }
+            _ = session.execute::<VecResult>(&format!("USE WAREHOUSE {warehouse}")).await?
         }
 
         Ok(session)

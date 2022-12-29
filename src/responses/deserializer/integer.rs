@@ -60,14 +60,13 @@ fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
             let res: Vec<Value> = opt
                 .iter()
                 .map(|x| {
-                    let value: i128;
-                    match x {
-                        Some(x) => value = num::cast(*x).unwrap(),
+                    let value: i128 = match x {
+                        Some(x) => num::cast(*x).unwrap(),
                         None => return null_from_arrow(field),
-                    }
+                    };
 
                     if field.is_nullable {
-                        let boxed = Box::new(Value::Integer(value as i128));
+                        let boxed = Box::new(Value::Integer(value));
                         Ok(Value::Nullable(Some(boxed)))
                     }
                     else {

@@ -17,8 +17,8 @@ impl QueryDeserializer for JsonMapResult {
     type ReturnType = serde_json::Map<String, serde_json::Value>;
 
     fn deserialize_rowset(
-        rowset: &Vec<Vec<serde_json::Value>>,
-        rowtype: &Vec<RowType>,
+        rowset: &[Vec<serde_json::Value>],
+        rowtype: &[RowType],
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let mut deserialized = Vec::new();
         for row in rowset {
@@ -53,7 +53,7 @@ impl QueryDeserializer for JsonMapResult {
                 let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
                 for (i, c) in col.iter().enumerate() {
                     let serialized =
-                        Self::serialize_value(&c).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
+                        Self::serialize_value(c).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
                     rows[i].insert(field.name.clone(), serialized);
                 }
             }
@@ -66,10 +66,10 @@ impl QueryDeserializer for JsonMapResult {
 impl QuerySerializer for JsonMapResult {}
 
 impl QueryResult for JsonMapResult {
-    fn new(res: &InternalResult, rowset: &Vec<Self::ReturnType>, session: &Session) -> Self {
+    fn new(res: &InternalResult, rowset: &[Self::ReturnType], session: &Session) -> Self {
         Self {
             rowtype: res.rowtype.clone(),
-            rowset: rowset.clone(),
+            rowset: rowset.to_vec(),
             query_id: res.query_id.clone(),
             query_detail_url: get_query_detail_url(session, &res.query_id.clone()),
             total: res.total,

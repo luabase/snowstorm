@@ -16,12 +16,12 @@ use std::collections::HashMap;
 #[async_trait]
 pub trait QueryResult: deserializer::QueryDeserializer + serializer::QuerySerializer + Sized {
 
-    fn new(res: &InternalResult, rowset: &Vec<Self::ReturnType>, session: &Session) -> Self;
+    fn new(res: &InternalResult, rowset: &[Self::ReturnType], session: &Session) -> Self;
 
     async fn load_chunk(res: &InternalResult, chunk: &Chunk) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let headers;
         match &res.chunk_headers {
-            Some(h) => headers = make_chunk_headers(&h).map_err(SnowflakeError::ChunkLoadingError)?,
+            Some(h) => headers = make_chunk_headers(h).map_err(SnowflakeError::ChunkLoadingError)?,
             None => {
                 match &res.qrmk {
                     Some(k) => headers = default_chunk_headers(k.as_str()).map_err(SnowflakeError::ChunkLoadingError)?,
@@ -46,7 +46,7 @@ pub trait QueryResult: deserializer::QueryDeserializer + serializer::QuerySerial
 pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> String {
     let components: Vec<String> = [session.region.clone(), Some(session.account.clone())]
         .into_iter()
-        .filter_map(|x| x)
+        .flatten()
         .collect();
     let path = components.join("/");
     format!("https://app.snowflake.com/{path}/#/compute/history/queries/{query_id}/detail")

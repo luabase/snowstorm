@@ -85,7 +85,7 @@ impl Session {
         let mut rowset;
         if let Some(r) = &internal.rowset_base64 {
             if cfg!(feature = "arrow") {
-                rowset = T::deserialize_rowset64(&r)?;
+                rowset = T::deserialize_rowset64(r)?;
             }
             else {
                 return Err(
@@ -96,7 +96,7 @@ impl Session {
             }
         }
         else if let Some(r) = &internal.rowset {
-            rowset = T::deserialize_rowset(&r, &internal.rowtype)?;
+            rowset = T::deserialize_rowset(r, &internal.rowtype)?;
         }
         else {
             return Err(

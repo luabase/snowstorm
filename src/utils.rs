@@ -9,7 +9,7 @@ pub(crate) fn urldecode_some(s: Option<&str>) -> String {
         }
     }
     else {
-        return String::new();
+        String::new()
     }
 }
 

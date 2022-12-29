@@ -35,11 +35,10 @@ pub(super) fn from_arrow(
     let res: Vec<Value> = downcasted
         .iter()
         .map(|x| {
-            let value;
-            match x {
-                Some(x) => value = x,
+            let value = match x {
+                Some(x) => x,
                 None => return null_from_arrow(field),
-            }
+            };
 
             if field.is_nullable {
                 let boxed = Box::new(Value::Binary(value.to_owned()));
