@@ -1,6 +1,5 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
-use simple_logger;
 use snowstorm::{Snowstorm, errors::SnowflakeError};
 use snowstorm::responses::result::hashmap::HashMapResult;
 use snowstorm::responses::types::value::Value;
@@ -19,13 +18,12 @@ async fn main() {
     let warehouse = dotenv!("SNOWFLAKE_WAREHOUSE");
 
     let dsn = format!(
-        "snowflake://{}:{}@{}/?role={}&database={}&schema={}&warehouse={}",
-        user, password, account, role, database, schema, warehouse
+        "snowflake://{user}:{password}@{account}/?role={role}&database={database}&schema={schema}&warehouse={warehouse}"
     );
 
-    let client = Snowstorm::try_new_with_dsn(dsn.into()).unwrap();
+    let client = Snowstorm::try_new_with_dsn(dsn).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await;
+    let res = session.execute::<HashMapResult>("SELECT * FROM snowstorm_test_data.public.test").await;
 
     match res {
         Ok(r) => {
@@ -41,10 +39,10 @@ async fn main() {
         Err(e) => {
             match e {
                 SnowflakeError::ExecutionError(msg, details) => {
-                    println!("Error: {:?}", msg);
+                    println!("Error: {msg}");
                     println!("Detail: {:?}", details);
                 },
-                _ => println!("Error: {:?}", e)
+                _ => println!("Error: {e}")
             }
 
         }
