@@ -44,33 +44,22 @@ impl QueryDeserializer for JsonMapResult {
 
     #[cfg(feature = "arrow")]
     fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
-        use anyhow::anyhow;
-        use arrow2::io::ipc::read;
-        use std::thread;
-        use std::time::Duration;
-
-        let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-        let mut stream: &[u8] = &data;
-
-        let metadata =
-            read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-        let mut stream = read::StreamReader::new(&mut stream, metadata, None);
-        let mut idx = 0;
-        loop {
-            match stream.next() {
-                Some(x) => match x {
-                    Ok(read::StreamState::Some(b)) => {
-                        idx += 1;
-                        println!("batch: {:?}", idx)
-                    }
-                    Ok(read::StreamState::Waiting) => thread::sleep(Duration::from_millis(2000)),
-                    Err(l) => println!("{:?} ({})", l, idx),
-                },
-                None => break,
-            };
+        let mut rows: Vec<Self::ReturnType> = vec![];
+        let (metadata, chunk) = Self::get_arrow_stream_from_rowset64(rowset)?;
+        if let Some(chunk) = chunk {
+            rows = vec![Self::ReturnType::new(); chunk.len()];
+            for (idx, column) in chunk.columns().iter().enumerate() {
+                let field = &metadata.schema.fields[idx];
+                let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
+                for (i, c) in col.iter().enumerate() {
+                    let serialized =
+                        Self::serialize_value(&c).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
+                    rows[i].insert(field.name.clone(), serialized);
+                }
+            }
         }
 
-        Err(SnowflakeError::GeneralError(anyhow!("Bla")))
+        Ok(rows)
     }
 }
 

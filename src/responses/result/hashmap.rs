@@ -39,34 +39,18 @@ impl QueryDeserializer for HashMapResult {
 
     #[cfg(feature = "arrow")]
     fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
-        use arrow2::io::ipc::read;
-
-        let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-        let mut stream: &[u8] = &data;
-
-        let metadata =
-            read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-        let schema = &metadata.schema.clone();
-
-        let mut stream = read::StreamReader::new(&mut stream, metadata, None);
-
         let mut rows: Vec<Self::ReturnType> = vec![];
-        if let Some(x) = stream.next() {
-            match x {
-                Ok(read::StreamState::Some(chunk)) => {
-                    rows = vec![Self::ReturnType::new(); chunk.len()];
-                    for (idx, column) in chunk.columns().iter().enumerate() {
-                        let field = &schema.fields[idx];
-                        let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
-                        for (i, c) in col.iter().enumerate() {
-                            rows[i].insert(field.name.clone(), c.clone());
-                        }
-                    }
+        let (metadata, chunk) = Self::get_arrow_stream_from_rowset64(rowset)?;
+        if let Some(chunk) = chunk {
+            rows = vec![Self::ReturnType::new(); chunk.len()];
+            for (idx, column) in chunk.columns().iter().enumerate() {
+                let field = &metadata.schema.fields[idx];
+                let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
+                for (i, c) in col.iter().enumerate() {
+                    rows[i].insert(field.name.clone(), c.clone());
                 }
-                Ok(read::StreamState::Waiting) => (),
-                Err(e) => return Err(SnowflakeError::new_deserialization_error(e.into())),
             }
-        };
+        }
 
         Ok(rows)
     }

@@ -88,6 +88,38 @@ pub trait QueryDeserializer: Sized {
     }
 
     #[cfg(feature = "arrow")]
+    fn get_arrow_stream_from_rowset64(
+        rowset: &str,
+    ) -> Result<
+        (
+            arrow2::io::ipc::read::StreamMetadata,
+            Option<arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>>,
+        ),
+        SnowflakeError,
+    > {
+        use arrow2::io::ipc::read;
+
+        let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+        let mut stream: &[u8] = &data;
+
+        let metadata =
+            read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+
+        let mut stream = read::StreamReader::new(&mut stream, metadata, None);
+
+        if let Some(x) = stream.next() {
+            match x {
+                Ok(read::StreamState::Some(chunk)) => Ok((metadata, Some(chunk))),
+                Ok(read::StreamState::Waiting) => Ok((metadata, None)),
+                Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
+            }
+        }
+        else {
+            Ok((metadata, None))
+        }
+    }
+
+    #[cfg(feature = "arrow")]
     fn deserialize_arrow_column(
         column: &dyn arrow2::array::Array,
         field: &arrow2::datatypes::Field,
