@@ -18,7 +18,7 @@ pub(super) fn duration_from_json_timestamp(timestamp: &f64) -> Duration {
 }
 
 #[cfg(feature = "arrow")]
-pub(super) fn duration_from_timestamp_and_scale(timestamp: &i64, scale: &i64) -> Duration {
+pub(super) fn duration_from_arrow_timestamp_and_scale(timestamp: &i64, scale: &i64) -> Duration {
     let seconds = timestamp / scale;
     let nanos = timestamp % scale * 10_i64.pow(9) / scale;
     Duration::seconds(seconds) + Duration::nanoseconds(nanos)

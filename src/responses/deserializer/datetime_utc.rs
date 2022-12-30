@@ -33,7 +33,7 @@ pub(super) fn from_arrow(
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::epoch::{
-        arrow_struct_to_naive_datetime, duration_from_timestamp_and_scale, get_arrow_time_scale,
+        arrow_struct_to_naive_datetime, duration_from_arrow_timestamp_and_scale, get_arrow_time_scale,
     };
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use crate::utils::until_err;
@@ -61,7 +61,7 @@ pub(super) fn from_arrow(
                 .map(|e| match e {
                     Some(timestamp) => {
                         let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap()
-                            + duration_from_timestamp_and_scale(timestamp, &scale);
+                            + duration_from_arrow_timestamp_and_scale(timestamp, &scale);
                         let datetime = DateTime::<Utc>::from_utc(naive, Utc);
                         let res = Value::DateTimeUTC(datetime);
                         if field.is_nullable {

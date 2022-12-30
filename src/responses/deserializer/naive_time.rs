@@ -72,14 +72,14 @@ fn _arrow_timestamp_to_time<T: num::NumCast + Copy>(
     timestamp: Option<&T>,
     field: &arrow2::datatypes::Field,
 ) -> Result<Value, SnowflakeError> {
-    use crate::responses::deserializer::epoch::{duration_from_timestamp_and_scale, get_arrow_time_scale};
+    use crate::responses::deserializer::epoch::{duration_from_arrow_timestamp_and_scale, get_arrow_time_scale};
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
 
     match timestamp {
         Some(ts) => {
             let scale = get_arrow_time_scale(field)?;
             let cast: i64 = num::cast(*ts).unwrap();
-            let value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + duration_from_timestamp_and_scale(&cast, &scale);
+            let value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + duration_from_arrow_timestamp_and_scale(&cast, &scale);
 
             if field.is_nullable {
                 let boxed = Box::new(Value::NaiveTime(value));
