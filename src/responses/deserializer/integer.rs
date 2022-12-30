@@ -38,6 +38,7 @@ pub(super) fn from_arrow(
         DataType::UInt32 => downcast_integer::<u32>(column, field),
         DataType::Int64 => downcast_integer::<i64>(column, field),
         DataType::UInt64 => downcast_integer::<u64>(column, field),
+        DataType::Decimal(..) => downcast_integer::<i128>(column, field),
         _ => Err(SnowflakeError::new_deserialization_error_with_field(
             anyhow!("Invalid integer data type {:?}", field.data_type),
             field.name.clone(),
