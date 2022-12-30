@@ -47,7 +47,7 @@ async fn main() {
                 match e {
                     SnowflakeError::ExecutionError(msg, details) => {
                         println!("Error: {msg}");
-                        println!("Detail: {:?}", details);
+                        println!("Detail: {details:?}");
                     },
                     _ => println!("Error: {e}")
                 }
