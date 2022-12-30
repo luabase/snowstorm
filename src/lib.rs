@@ -29,7 +29,10 @@ pub struct Snowstorm {
     role: Option<String>,
     database: Option<String>,
     schema: Option<String>,
-    warehouse: Option<String>
+    warehouse: Option<String>,
+
+    // Optional settings
+    proxy: Option<String>
 }
 
 impl Snowstorm {
@@ -47,8 +50,14 @@ impl Snowstorm {
             role: None,
             database: None,
             schema: None,
-            warehouse: None
+            warehouse: None,
+            proxy: None
         }
+    }
+
+    pub fn proxy(mut self, address: &str) -> Self {
+        self.proxy = Some(address.to_owned());
+        self
     }
 
     /// Creates a client instance using a DSN string.
@@ -91,7 +100,8 @@ impl Snowstorm {
             role,
             database,
             schema,
-            warehouse
+            warehouse,
+            proxy: None
         })
     }
 
@@ -102,9 +112,14 @@ impl Snowstorm {
         let headers = Snowstorm::get_headers(None)
             .map_err(SnowflakeError::GeneralError)?;
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            // .proxy(reqwest::Proxy::https("http://127.0.0.1:9090").unwrap())
+        let mut builder = reqwest::Client::builder()
+            .default_headers(headers);
+
+        if let Some(proxy) = &self.proxy {
+            builder = builder.proxy(reqwest::Proxy::https(proxy).unwrap());
+        }
+
+        let client = builder
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
@@ -162,11 +177,16 @@ impl Snowstorm {
         let session_headers = Snowstorm::get_headers(Some(data.token.as_str()))
             .map_err(SnowflakeError::GeneralError)?;
 
-        let session_client = reqwest::Client::builder()
+        let mut session_builder = reqwest::Client::builder()
             .gzip(true)
             .deflate(true)
-            .default_headers(session_headers)
-            // .proxy(reqwest::Proxy::https("http://127.0.0.1:9090").unwrap())
+            .default_headers(session_headers);
+
+        if let Some(proxy) = &self.proxy {
+            session_builder = session_builder.proxy(reqwest::Proxy::https(proxy).unwrap());
+        }
+
+        let session_client = session_builder
             .build()
             .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
