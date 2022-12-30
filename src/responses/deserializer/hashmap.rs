@@ -4,8 +4,8 @@ use crate::responses::types::{row_type::RowType, value::Value};
 use serde_json;
 use std::collections::HashMap;
 
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let parsed: HashMap<String, serde_json::Value> = serde_json::from_value(json.clone()).map_err(|e| {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
+    let parsed: HashMap<String, serde_json::Value> = serde_json::from_str(json).map_err(|e| {
         SnowflakeError::new_deserialization_error_with_field_and_value(
             e.into(),
             row_type.name.clone(),

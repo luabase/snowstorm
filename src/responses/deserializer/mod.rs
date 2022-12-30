@@ -20,8 +20,6 @@ use crate::responses::types::{
     value::{Value, ValueType},
 };
 
-use anyhow::anyhow;
-
 #[cfg(feature = "arrow")]
 use arrow2;
 #[cfg(feature = "arrow")]
@@ -47,6 +45,11 @@ pub trait QueryDeserializer: Sized {
     #[cfg(feature = "arrow")]
     fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
+    #[cfg(not(feature = "arrow"))]
+    fn deserialize_rowset64(_rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+        panic!("Arrow feature is not enabled");
+    }
+
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
         use crate::responses::deserializer::binary::from_json as binary_from_json;
         use crate::responses::deserializer::boolean::from_json as boolean_from_json;
@@ -63,9 +66,10 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::variant::from_json as variant_from_json;
         use crate::responses::deserializer::vec::from_json as vec_from_json;
 
-        if value.is_null() {
-            return null_from_json(row_type);
-        }
+        let json = match value.as_str() {
+            Some(string) => string,
+            None => return null_from_json(row_type),
+        };
 
         let value_type = match row_type.value_type() {
             ValueType::Nullable(v) => *v,
@@ -73,19 +77,19 @@ pub trait QueryDeserializer: Sized {
         };
 
         match value_type {
-            ValueType::Boolean => boolean_from_json(value, row_type),
-            ValueType::Integer => integer_from_json(value, row_type),
-            ValueType::Float => float_from_json(value, row_type),
-            ValueType::String => string_from_json(value, row_type),
-            ValueType::Binary => binary_from_json(value, row_type),
-            ValueType::NaiveDate => naive_date_from_json(value, row_type),
-            ValueType::NaiveTime => naive_time_from_json(value, row_type),
-            ValueType::NaiveDateTime => naive_datetime_from_json(value, row_type),
-            ValueType::DateTimeUTC => datetime_utc_from_json(value, row_type),
-            ValueType::DateTime => datetime_from_json(value, row_type),
+            ValueType::Boolean => boolean_from_json(json, row_type),
+            ValueType::Integer => integer_from_json(json, row_type),
+            ValueType::Float => float_from_json(json, row_type),
+            ValueType::String => string_from_json(json, row_type),
+            ValueType::Binary => binary_from_json(json, row_type),
+            ValueType::NaiveDate => naive_date_from_json(json, row_type),
+            ValueType::NaiveTime => naive_time_from_json(json, row_type),
+            ValueType::NaiveDateTime => naive_datetime_from_json(json, row_type),
+            ValueType::DateTimeUTC => datetime_utc_from_json(json, row_type),
+            ValueType::DateTime => datetime_from_json(json, row_type),
             ValueType::Variant => variant_from_json(value, row_type),
-            ValueType::HashMap => hashmap_from_json(value, row_type),
-            ValueType::Vec => vec_from_json(value, row_type),
+            ValueType::HashMap => hashmap_from_json(json, row_type),
+            ValueType::Vec => vec_from_json(json, row_type),
             _ => {
                 if row_type.nullable {
                     let boxed = Box::new(Value::Unsupported(value.to_owned()));
@@ -137,6 +141,7 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::string::from_arrow as string_from_arrow;
         use crate::responses::deserializer::variant::from_arrow as variant_from_arrow;
         use crate::responses::deserializer::vec::from_arrow as vec_from_arrow;
+        use anyhow::anyhow;
 
         let row_type = RowType::from_arrow_field(field);
 

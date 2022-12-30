@@ -28,6 +28,8 @@ async fn main() {
 
     for table in tables {
         let query = format!("SELECT * FROM snowstorm_test_data.public.{table}");
+        println!("+++ Running query {query}");
+
         let res = session.execute::<HashMapResult>(&query).await;
 
         match res {

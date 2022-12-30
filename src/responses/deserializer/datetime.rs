@@ -1,12 +1,12 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::epoch::get_json_time_scale;
+use crate::responses::deserializer::epoch::duration_from_json_timestamp;
 use crate::responses::types::{row_type::RowType, value::Value};
 
 use anyhow::anyhow;
-use chrono::{prelude::*, Duration};
+use chrono::prelude::*;
 use serde_json;
 
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
     let pair = json.to_string();
     let timezone_str;
     let offset_str;
@@ -49,9 +49,7 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
         }
     }
 
-    let scale = get_json_time_scale(row_type)?;
-    let nanos = (timestamp * scale).round() as i64;
-    let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
+    let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + duration_from_json_timestamp(&timestamp);
     let datetime = DateTime::<FixedOffset>::from_local(naive, timezone);
 
     if row_type.nullable {
@@ -72,6 +70,7 @@ pub(super) fn from_arrow(
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use arrow2::array::StructArray;
     use arrow2::scalar::PrimitiveScalar;
+    use chrono::Duration;
 
     let _downcasted = column.as_any().downcast_ref::<StructArray>().unwrap();
     _downcasted

@@ -1,12 +1,12 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::epoch::get_json_time_scale;
+use crate::responses::deserializer::epoch::duration_from_json_timestamp;
 use crate::responses::types::{row_type::RowType, value::Value};
 
-use chrono::{prelude::*, Duration};
+use chrono::prelude::*;
 use serde_json;
 
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let timestamp: f64 = serde_json::from_value(json.clone()).map_err(|e| {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
+    let timestamp: f64 = serde_json::from_str(json).map_err(|e| {
         SnowflakeError::new_deserialization_error_with_field_and_value(
             e.into(),
             row_type.name.clone(),
@@ -14,9 +14,7 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
         )
     })?;
 
-    let scale = get_json_time_scale(row_type)?;
-    let nanos = (timestamp * scale).round() as i64;
-    let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
+    let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + duration_from_json_timestamp(&timestamp);
     let datetime = DateTime::<Utc>::from_utc(naive, Utc);
 
     let res = Value::DateTimeUTC(datetime);

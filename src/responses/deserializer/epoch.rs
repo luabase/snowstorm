@@ -1,22 +1,18 @@
+#[cfg(feature = "arrow")]
 use crate::errors::SnowflakeError;
-use crate::responses::types::row_type::RowType;
-
+#[cfg(feature = "arrow")]
 use anyhow::anyhow;
-use chrono::{prelude::*, Duration};
+#[cfg(feature = "arrow")]
+use chrono::prelude::*;
+use chrono::Duration;
 
-pub(super) fn get_json_time_scale(row_type: &RowType) -> Result<f64, SnowflakeError> {
-    match row_type.scale {
-        Some(scale) => {
-            assert!(scale <= 9);
-            Ok(10_f64.powf(f64::from(9 - scale)))
-        }
-        None => Err(SnowflakeError::new_deserialization_error_with_field(
-            anyhow!("Missing required scale for field {}", row_type.name),
-            row_type.name.clone(),
-        )),
-    }
+pub(super) fn duration_from_json_timestamp(timestamp: &f64) -> Duration {
+    let seconds = timestamp.round();
+    let nanos = (timestamp - seconds) * 10_f64.powf(9.0);
+    Duration::seconds(seconds as i64) + Duration::nanoseconds(nanos as i64)
 }
 
+#[cfg(feature = "arrow")]
 pub(super) fn duration_from_timestamp_and_scale(timestamp: &i64, scale: &i64) -> Duration {
     let seconds = timestamp / scale;
     let nanos = timestamp % scale * 10_i64.pow(9) / scale;

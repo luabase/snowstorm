@@ -13,6 +13,7 @@ pub(crate) fn urldecode_some(s: Option<&str>) -> String {
     }
 }
 
+#[allow(unused)]
 pub(crate) fn until_err<T, E>(err: &mut &mut Result<(), E>, item: Result<T, E>) -> Option<T> {
     match item {
         Ok(item) => Some(item),

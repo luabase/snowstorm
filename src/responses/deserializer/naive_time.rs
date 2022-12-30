@@ -1,12 +1,11 @@
 use crate::errors::SnowflakeError;
-use crate::responses::deserializer::epoch::get_json_time_scale;
 use crate::responses::types::{row_type::RowType, value::Value};
 
 use chrono::{prelude::*, Duration};
 use serde_json;
 
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let parsed: f64 = serde_json::from_value(json.clone()).map_err(|e| {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
+    let parsed: f64 = serde_json::from_str(json).map_err(|e| {
         SnowflakeError::new_deserialization_error_with_field_and_value(
             e.into(),
             row_type.name.clone(),
@@ -14,8 +13,7 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
         )
     })?;
 
-    let scale = get_json_time_scale(row_type)?;
-    let nanos = (parsed * scale).round() as i64;
+    let nanos = (parsed * 10_f64.powf(9.0)).round() as i64;
     let time = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + Duration::nanoseconds(nanos);
     if row_type.nullable {
         let boxed = Box::new(Value::NaiveTime(time));

@@ -1,9 +1,7 @@
 use crate::errors::SnowflakeError;
 use crate::responses::types::{row_type::RowType, value::Value};
 
-use serde_json;
-
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
     if row_type.nullable {
         let boxed = Box::new(Value::String(json.to_string()));
         Ok(Value::Nullable(Some(boxed)))

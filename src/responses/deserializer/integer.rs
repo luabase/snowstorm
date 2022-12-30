@@ -1,11 +1,10 @@
 use crate::errors::SnowflakeError;
 use crate::responses::types::{row_type::RowType, value::Value};
 
-use anyhow::anyhow;
 use serde_json;
 
-pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let parsed: i128 = serde_json::from_value(json.clone()).map_err(|e| {
+pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
+    let parsed: i128 = serde_json::from_str(json).map_err(|e| {
         SnowflakeError::new_deserialization_error_with_field_and_value(
             e.into(),
             row_type.name.clone(),
@@ -27,6 +26,7 @@ pub(super) fn from_arrow(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
+    use anyhow::anyhow;
     use arrow2::datatypes::DataType;
 
     match field.data_type {
@@ -45,12 +45,14 @@ pub(super) fn from_arrow(
     }
 }
 
+#[cfg(feature = "arrow")]
 fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use crate::utils::until_err;
+    use anyhow::anyhow;
     use arrow2::array::PrimitiveArray;
 
     match column.as_any().downcast_ref::<PrimitiveArray<T>>() {
