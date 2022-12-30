@@ -1,4 +1,5 @@
 use crate::errors::SnowflakeError;
+use crate::responses::deserializer::epoch::get_json_time_scale;
 use crate::responses::types::{row_type::RowType, value::Value};
 
 use anyhow::anyhow;
@@ -48,7 +49,8 @@ pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<
         }
     }
 
-    let nanos = (timestamp * 1_000_000_000.0).round() as i64;
+    let scale = get_json_time_scale(row_type)?;
+    let nanos = (timestamp * scale).round() as i64;
     let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
     let datetime = DateTime::<FixedOffset>::from_local(naive, timezone);
 
@@ -66,6 +68,7 @@ pub(super) fn from_arrow(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
+    use crate::responses::deserializer::epoch::get_arrow_time_scale;
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use arrow2::array::StructArray;
     use arrow2::scalar::PrimitiveScalar;
@@ -118,7 +121,8 @@ pub(super) fn from_arrow(
                             }
                         }
 
-                        let nanos = *timestamp * 1_000_000_000;
+                        let scale = get_arrow_time_scale(field)?;
+                        let nanos = *timestamp * scale;
                         let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
                         let datetime = DateTime::<FixedOffset>::from_local(naive, timezone);
 

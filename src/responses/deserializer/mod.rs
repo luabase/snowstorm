@@ -175,10 +175,10 @@ pub trait QueryDeserializer: Sized {
             ValueType::Variant => variant_from_arrow(column, field),
             ValueType::HashMap => hashmap_from_arrow(column, field),
             ValueType::Vec => vec_from_arrow(column, field),
-            x => {
-                println!("{} ({:?}): {:?}", field.name, field.data_type, x);
-                Err(SnowflakeError::new_deserialization_error(anyhow!("Unrecognized type")))
-            }
+            x => Err(SnowflakeError::new_deserialization_error_with_field(
+                anyhow!("Unrecognized value data type {:?}", x),
+                field.name.clone(),
+            )),
         }
     }
 }

@@ -23,28 +23,34 @@ async fn main() {
 
     let client = Snowstorm::try_new_with_dsn(dsn).unwrap();
     let session = client.connect().await.unwrap();
-    let res = session.execute::<HashMapResult>("SELECT * FROM snowstorm_test_data.public.test").await;
 
-    match res {
-        Ok(r) => {
-            for row in r.rowset.into_iter() {
-                let mut vec: Vec<(String, Value)> = row.into_iter().collect();
-                vec.sort_by_key(|k| k.0.clone());
-                for kv in vec.iter() {
-                    println!("{}: {}", kv.0, kv.1);
+    let tables = vec!["TEST", "NUMBER_TEST", "TIME_TEST", "TIMESTAMP_NTZ_TEST", "TIMESTAMP_TZ_TEST", "TIMESTAMP_LTZ_TEST"];
+
+    for table in tables {
+        let query = format!("SELECT * FROM snowstorm_test_data.public.{table}");
+        let res = session.execute::<HashMapResult>(&query).await;
+
+        match res {
+            Ok(r) => {
+                for row in r.rowset.into_iter() {
+                    let mut vec: Vec<(String, Value)> = row.into_iter().collect();
+                    vec.sort_by_key(|k| k.0.clone());
+                    for kv in vec.iter() {
+                        println!("{}: {}", kv.0, kv.1);
+                    }
+                    println!("---");
                 }
-                println!("---");
-            }
-        },
-        Err(e) => {
-            match e {
-                SnowflakeError::ExecutionError(msg, details) => {
-                    println!("Error: {msg}");
-                    println!("Detail: {:?}", details);
-                },
-                _ => println!("Error: {e}")
-            }
+            },
+            Err(e) => {
+                match e {
+                    SnowflakeError::ExecutionError(msg, details) => {
+                        println!("Error: {msg}");
+                        println!("Detail: {:?}", details);
+                    },
+                    _ => println!("Error: {e}")
+                }
 
+            }
         }
     }
 }

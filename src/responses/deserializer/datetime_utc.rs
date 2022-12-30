@@ -1,27 +1,31 @@
 use crate::errors::SnowflakeError;
+use crate::responses::deserializer::epoch::get_json_time_scale;
 use crate::responses::types::{row_type::RowType, value::Value};
 
 use chrono::{prelude::*, Duration};
 use serde_json;
 
 pub(super) fn from_json(json: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let parsed: f64 = serde_json::from_value(json.clone()).map_err(|e| {
+    let timestamp: f64 = serde_json::from_value(json.clone()).map_err(|e| {
         SnowflakeError::new_deserialization_error_with_field_and_value(
             e.into(),
             row_type.name.clone(),
             json.to_string(),
         )
     })?;
-    let nanos = (parsed * 1_000_000_000.0).round() as i64;
+
+    let scale = get_json_time_scale(row_type)?;
+    let nanos = (timestamp * scale).round() as i64;
     let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
     let datetime = DateTime::<Utc>::from_utc(naive, Utc);
 
+    let res = Value::DateTimeUTC(datetime);
     if row_type.nullable {
-        let boxed = Box::new(Value::DateTimeUTC(datetime));
+        let boxed = Box::new(res);
         Ok(Value::Nullable(Some(boxed)))
     }
     else {
-        Ok(Value::DateTimeUTC(datetime))
+        Ok(res)
     }
 }
 
@@ -30,48 +34,98 @@ pub(super) fn from_arrow(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
+    use crate::responses::deserializer::epoch::{
+        arrow_struct_to_naive_datetime, duration_from_timestamp_and_scale, get_arrow_time_scale,
+    };
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
+    use crate::utils::until_err;
     use anyhow::anyhow;
-    use arrow2::array::StructArray;
-    use arrow2::scalar::PrimitiveScalar;
+    use arrow2::array::{PrimitiveArray, StructArray};
+    use arrow2::datatypes::DataType;
 
-    let _downcasted = column.as_any().downcast_ref::<StructArray>().unwrap();
-    _downcasted
-        .iter()
-        .map(|e| match e {
-            Some(value) => {
-                let downcasted = (value[0]).as_any().downcast_ref::<PrimitiveScalar<i64>>();
-                let scalar = match downcasted {
-                    Some(d) => d.value(),
-                    None => {
-                        return Err(SnowflakeError::new_deserialization_error_with_field(
-                            anyhow!("Could not deserialize {:?} as i64", field.data_type),
-                            field.name.clone(),
-                        ))
-                    }
-                };
+    match &field.data_type {
+        DataType::Int64 => {
+            let downcasted = match column.as_any().downcast_ref::<PrimitiveArray<i64>>() {
+                Some(x) => x,
+                None => {
+                    return Err(SnowflakeError::new_deserialization_error_with_field(
+                        anyhow!("Could not downcast to primitive array of i64"),
+                        field.name.clone(),
+                    ))
+                }
+            };
 
-                match scalar {
-                    Some(x) => {
-                        let nanos = *x * 1_000_000_000;
-                        let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap() + Duration::nanoseconds(nanos);
+            let mut err = Ok(());
+            let scale = get_arrow_time_scale(field)?;
+
+            let res: Vec<Value> = downcasted
+                .iter()
+                .map(|e| match e {
+                    Some(timestamp) => {
+                        let naive = NaiveDateTime::from_timestamp_opt(0, 0).unwrap()
+                            + duration_from_timestamp_and_scale(timestamp, &scale);
                         let datetime = DateTime::<Utc>::from_utc(naive, Utc);
-
+                        let res = Value::DateTimeUTC(datetime);
                         if field.is_nullable {
-                            let boxed = Box::new(Value::DateTimeUTC(datetime));
+                            let boxed = Box::new(res);
                             Ok(Value::Nullable(Some(boxed)))
                         }
                         else {
-                            Ok(Value::DateTimeUTC(datetime))
+                            Ok(res)
                         }
                     }
-                    None => Err(SnowflakeError::new_deserialization_error_with_field(
-                        anyhow!("Encountered null epoch value"),
-                        field.name.clone(),
-                    )),
-                }
+                    None => null_from_arrow(field),
+                })
+                .scan(&mut err, until_err)
+                .collect();
+
+            match err {
+                Ok(..) => Ok(res),
+                Err(e) => Err(e),
             }
-            None => null_from_arrow(field),
-        })
-        .collect()
+        }
+
+        DataType::Struct(..) => {
+            let downcasted = match column.as_any().downcast_ref::<StructArray>() {
+                Some(x) => x,
+                None => {
+                    return Err(SnowflakeError::new_deserialization_error_with_field(
+                        anyhow!("Could not downcast to struct array"),
+                        field.name.clone(),
+                    ))
+                }
+            };
+
+            let mut err = Ok(());
+
+            let res = downcasted
+                .values_iter()
+                .map(|s| match arrow_struct_to_naive_datetime(&s, field)? {
+                    Some(naive) => {
+                        let datetime = DateTime::<Utc>::from_utc(naive, Utc);
+                        let res = Value::DateTimeUTC(datetime);
+                        if field.is_nullable {
+                            let boxed = Box::new(res);
+                            Ok(Value::Nullable(Some(boxed)))
+                        }
+                        else {
+                            Ok(res)
+                        }
+                    }
+                    None => null_from_arrow(field),
+                })
+                .scan(&mut err, until_err)
+                .collect();
+
+            match err {
+                Ok(..) => Ok(res),
+                Err(e) => Err(e),
+            }
+        }
+
+        _ => Err(SnowflakeError::new_deserialization_error_with_field(
+            anyhow!("Invalid data type {:?} for field {}", field.data_type, field.name),
+            field.name.clone(),
+        )),
+    }
 }
