@@ -16,6 +16,6 @@ async fn main() {
 
     let res = session.execute::<VecResult>("SHOW GRANTS").await.unwrap();
     for row in res.rowset.into_iter() {
-        println!("{:?}", row);
+        println!("{row:?}");
     }
 }
