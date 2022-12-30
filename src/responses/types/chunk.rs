@@ -17,7 +17,7 @@ pub struct Chunk {
 
 impl Chunk {
 
-    pub(crate) async fn load<T: QueryResult>(
+    pub(crate) async fn load_json<T: QueryResult>(
         &self,
         client: &reqwest::Client,
         rowtype: &[RowType]
@@ -64,15 +64,66 @@ impl Chunk {
                 SnowflakeError::new_deserialization_error_with_value(e.into(), text)
             })?;
 
-        let data = T::deserialize_rowset(&res, rowtype)
+        T::deserialize_rowset(&res, rowtype)
             .map_err(|e| {
                 log::error!(
                     "Failed to load chunk due to data deserialization error."
                 );
                 e
-            })?;
+            })
+    }
 
-        Ok(data)
+    #[cfg(feature = "arrow")]
+    pub(crate) async fn load_arrow<T: QueryResult>(
+        &self,
+        client: &reqwest::Client
+    ) -> Result<Vec<T::ReturnType>, SnowflakeError> {
+        let req = client
+            .get(&self.url)
+            .build()
+            .map_err(|e| SnowflakeError::ChunkLoadingError(e.into()))?;
+
+        let body = client
+            .execute(req).await
+            .map_err(|e| SnowflakeError::ChunkLoadingError(e.into()))?;
+
+        let headers = body.headers();
+        let mut should_decompress = false;
+        if let Some(x) = headers.get(CONTENT_ENCODING) {
+            if x.to_str().unwrap_or("").to_ascii_lowercase() == "gzip" {
+                should_decompress = true
+            }
+        }
+
+        let mut stream: Vec<u8> = match should_decompress {
+            true => {
+                let reader = body
+                    .bytes_stream()
+                    .map_err(|e| io::Error::new(ErrorKind::Other, e))
+                    .into_async_read();
+                let mut decoder = GzipDecoder::new(BufReader::new(reader));
+                let mut data: Vec<u8> = vec![];
+                decoder.read_to_end(&mut data).await
+                    .map_err(|e| SnowflakeError::ChunkLoadingError(e.into()))?;
+                data
+            },
+            false => {
+                let x = body
+                    .bytes().await
+                    .map_err(|e| SnowflakeError::ChunkLoadingError(e.into()))?;
+                x.to_vec()
+            }
+        };
+
+        T::deserialize_arrow_stream(&mut stream)
+    }
+
+    #[cfg(not(feature = "arrow"))]
+    pub(crate) async fn load_arrow<T: QueryResult>(
+        &self,
+        _client: &reqwest::Client
+    ) -> Result<Vec<T::ReturnType>, SnowflakeError> {
+        panic!("Arrow feature is not enabled");
     }
 
 }

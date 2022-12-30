@@ -43,12 +43,37 @@ pub trait QueryDeserializer: Sized {
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
+    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+        let mut rows: Vec<Self::ReturnType> = vec![];
+
+        if let Some((metadata, chunk)) = get_arrow_from_rowset64(rowset)? {
+            rows = Self::deserialize_arrow_chunk(metadata, chunk)?;
+        }
+
+        Ok(rows)
+    }
 
     #[cfg(not(feature = "arrow"))]
     fn deserialize_rowset64(_rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         panic!("Arrow feature is not enabled");
     }
+
+    #[cfg(feature = "arrow")]
+    fn deserialize_arrow_stream(stream: &mut [u8]) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+        let mut rows: Vec<Self::ReturnType> = vec![];
+
+        if let Some((metadata, chunk)) = get_arrow_from_stream(stream)? {
+            rows = Self::deserialize_arrow_chunk(metadata, chunk)?;
+        }
+
+        Ok(rows)
+    }
+
+    #[cfg(feature = "arrow")]
+    fn deserialize_arrow_chunk(
+        metadata: ArrowStreamMetadata,
+        chunk: Option<ArrowChunk<Box<dyn ArrowArray>>>,
+    ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
         use crate::responses::deserializer::binary::from_json as binary_from_json;
@@ -99,34 +124,6 @@ pub trait QueryDeserializer: Sized {
                     Ok(Value::Unsupported(value.to_owned()))
                 }
             }
-        }
-    }
-
-    #[cfg(feature = "arrow")]
-    fn get_arrow_stream_from_rowset64(rowset: &str) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
-        use arrow2::io::ipc::read;
-
-        if rowset.is_empty() {
-            return Ok(None);
-        }
-
-        let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-        let mut stream: &[u8] = &data;
-
-        let metadata =
-            read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-
-        let mut stream = read::StreamReader::new(&mut stream, metadata.clone(), None);
-
-        if let Some(x) = stream.next() {
-            match x {
-                Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
-                Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
-                Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
-            }
-        }
-        else {
-            Ok(Some((metadata, None)))
         }
     }
 
@@ -189,5 +186,36 @@ pub trait QueryDeserializer: Sized {
                 field.name.clone(),
             )),
         }
+    }
+}
+
+#[cfg(feature = "arrow")]
+fn get_arrow_from_rowset64(rowset: &str) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
+    if rowset.is_empty() {
+        return Ok(None);
+    }
+
+    let mut data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+    get_arrow_from_stream(&mut data)
+}
+
+#[cfg(feature = "arrow")]
+fn get_arrow_from_stream(mut stream: &[u8]) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
+    use arrow2::io::ipc::read;
+
+    let metadata =
+        read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+
+    let mut stream = read::StreamReader::new(&mut stream, metadata.clone(), None);
+
+    if let Some(x) = stream.next() {
+        match x {
+            Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
+            Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
+            Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
+        }
+    }
+    else {
+        Ok(Some((metadata, None)))
     }
 }

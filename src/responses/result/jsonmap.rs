@@ -43,20 +43,21 @@ impl QueryDeserializer for JsonMapResult {
     }
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+    fn deserialize_arrow_chunk(
+        metadata: arrow2::io::ipc::read::StreamMetadata,
+        chunk: Option<arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>>,
+    ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let mut rows: Vec<Self::ReturnType> = vec![];
 
-        if let Some((metadata, chunk)) = Self::get_arrow_stream_from_rowset64(rowset)? {
-            if let Some(chunk) = chunk {
-                rows = vec![Self::ReturnType::new(); chunk.len()];
-                for (idx, column) in chunk.columns().iter().enumerate() {
-                    let field = &metadata.schema.fields[idx];
-                    let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
-                    for (i, c) in col.iter().enumerate() {
-                        let serialized =
-                            Self::serialize_value(c).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
-                        rows[i].insert(field.name.clone(), serialized);
-                    }
+        if let Some(chunk) = chunk {
+            rows = vec![Self::ReturnType::new(); chunk.len()];
+            for (idx, column) in chunk.columns().iter().enumerate() {
+                let field = &metadata.schema.fields[idx];
+                let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
+                for (i, c) in col.iter().enumerate() {
+                    let serialized =
+                        Self::serialize_value(c).map_err(|e| SnowflakeError::SerializationError(e.into()))?;
+                    rows[i].insert(field.name.clone(), serialized);
                 }
             }
         }

@@ -33,16 +33,17 @@ impl QueryDeserializer for VecResult {
     }
 
     #[cfg(feature = "arrow")]
-    fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
+    fn deserialize_arrow_chunk(
+        metadata: arrow2::io::ipc::read::StreamMetadata,
+        chunk: Option<arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>>,
+    ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let mut rows: Vec<Self::ReturnType> = vec![];
 
-        if let Some((metadata, chunk)) = Self::get_arrow_stream_from_rowset64(rowset)? {
-            if let Some(chunk) = chunk {
-                for (idx, column) in chunk.columns().iter().enumerate() {
-                    let field = &metadata.schema.fields[idx];
-                    let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
-                    rows.push(col);
-                }
+        if let Some(chunk) = chunk {
+            for (idx, column) in chunk.columns().iter().enumerate() {
+                let field = &metadata.schema.fields[idx];
+                let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
+                rows.push(col);
             }
         }
 

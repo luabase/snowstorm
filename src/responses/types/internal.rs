@@ -12,5 +12,6 @@ pub struct InternalResult {
     pub total: usize,
     pub chunks: Option<Vec<Chunk>>,
     pub(crate) chunk_headers: Option<HashMap<String, serde_json::Value>>,
-    pub(crate) qrmk: Option<String>
+    pub(crate) qrmk: Option<String>,
+    pub(crate) query_result_format: String,
 }

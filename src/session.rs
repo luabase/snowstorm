@@ -86,16 +86,7 @@ impl Session {
 
         let mut rowset;
         if let Some(r) = &internal.rowset_base64 {
-            if cfg!(feature = "arrow") {
-                rowset = T::deserialize_rowset64(r)?;
-            }
-            else {
-                return Err(
-                    SnowflakeError::GeneralError(
-                        anyhow!("Cannot deserialize Arrow format since arrow feature is disabled")
-                    )
-                );
-            }
+            rowset = T::deserialize_rowset64(r)?;
         }
         else if let Some(r) = &internal.rowset {
             rowset = T::deserialize_rowset(r, &internal.rowtype)?;
@@ -112,7 +103,12 @@ impl Session {
         if let Some(chunks) = internal.chunks.clone() {
             let downloader = make_chunk_downloader(self, &internal)?;
             for chunk in chunks {
-                let loaded: Vec<T::ReturnType> = chunk.load::<T>(&downloader, &internal.rowtype).await?;
+                let loaded = match internal.query_result_format.as_str() {
+                    "arrow" => chunk.load_arrow::<T>(&downloader).await,
+                    "json" => chunk.load_json::<T>(&downloader, &internal.rowtype).await,
+                    x => Err(SnowflakeError::ChunkLoadingError(anyhow!("Unsupported query result format {x}")))
+                }?;
+
                 rowset.extend(&mut loaded.into_iter());
             }
         }
