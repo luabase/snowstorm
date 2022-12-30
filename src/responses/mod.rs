@@ -4,7 +4,7 @@ pub mod serializer;
 pub mod types;
 
 use crate::errors::SnowflakeError;
-use crate::responses::types::{chunk::Chunk, internal::InternalResult};
+use crate::responses::types::internal::InternalResult;
 use crate::session::Session;
 
 use anyhow::anyhow;
@@ -12,35 +12,9 @@ use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT};
 use std::collections::HashMap;
 
-
 #[async_trait]
 pub trait QueryResult: deserializer::QueryDeserializer + serializer::QuerySerializer + Sized {
-
     fn new(res: &InternalResult, rowset: &[Self::ReturnType], session: &Session) -> Self;
-
-    async fn load_chunk(res: &InternalResult, chunk: &Chunk) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
-        let headers;
-        match &res.chunk_headers {
-            Some(h) => headers = make_chunk_headers(h).map_err(SnowflakeError::ChunkLoadingError)?,
-            None => {
-                match &res.qrmk {
-                    Some(k) => headers = default_chunk_headers(k.as_str()).map_err(SnowflakeError::ChunkLoadingError)?,
-                    None => return Err(SnowflakeError::ChunkLoadingError(anyhow!("Encryption key is missing")))
-                }
-            }
-        }
-
-        let client = reqwest::Client::builder()
-            .gzip(true)
-            .deflate(true)
-            .default_headers(headers)
-            .build()
-            .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
-
-        let res = chunk.load::<Self>(&client, &res.rowtype).await?;
-        Ok(res)
-    }
-
 }
 
 pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> String {
@@ -54,8 +28,14 @@ pub(crate) fn get_query_detail_url(session: &Session, query_id: &String) -> Stri
 
 pub(self) fn default_chunk_headers(encryption_key: &str) -> Result<HeaderMap, anyhow::Error> {
     let mut headers = HeaderMap::with_capacity(3);
-    headers.append(USER_AGENT, concat!(env!("CARGO_PKG_NAME"), '/', env!("CARGO_PKG_VERSION")).parse()?);
-    headers.append("x-amz-server-side-encryption-customer-algorithm", HeaderValue::from_static("AES256"));
+    headers.append(
+        USER_AGENT,
+        concat!(env!("CARGO_PKG_NAME"), '/', env!("CARGO_PKG_VERSION")).parse()?,
+    );
+    headers.append(
+        "x-amz-server-side-encryption-customer-algorithm",
+        HeaderValue::from_static("AES256"),
+    );
     headers.append("x-amz-server-side-encryption-customer-key", encryption_key.parse()?);
     Ok(headers)
 }
@@ -68,4 +48,28 @@ pub(crate) fn make_chunk_headers(raw_headers: &HashMap<String, serde_json::Value
         headers.insert(name, value.parse()?);
     }
     Ok(headers)
+}
+
+pub(super) fn make_chunk_downloader(
+    session: &Session,
+    res: &InternalResult,
+) -> Result<reqwest::Client, SnowflakeError> {
+    let headers = match &res.chunk_headers {
+        Some(h) => make_chunk_headers(h).map_err(SnowflakeError::ChunkLoadingError)?,
+        None => match &res.qrmk {
+            Some(k) => default_chunk_headers(k.as_str()).map_err(SnowflakeError::ChunkLoadingError)?,
+            None => return Err(SnowflakeError::ChunkLoadingError(anyhow!("Encryption key is missing"))),
+        },
+    };
+
+    let mut builder = reqwest::Client::builder()
+        .gzip(true)
+        .deflate(true)
+        .default_headers(headers);
+
+    if let Some(proxy) = &session.proxy {
+        builder = builder.proxy(reqwest::Proxy::https(proxy).unwrap());
+    }
+
+    builder.build().map_err(|e| SnowflakeError::GeneralError(e.into()))
 }

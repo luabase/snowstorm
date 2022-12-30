@@ -194,7 +194,8 @@ impl Snowstorm {
             session_client,
             &self.get_host(),
             account_name,
-            (!region.is_empty()).then_some(*region)
+            (!region.is_empty()).then_some(*region),
+            &self.proxy
         );
 
         if let Some(role) = &self.role {

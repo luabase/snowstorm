@@ -1,5 +1,5 @@
 use crate::errors::SnowflakeError;
-use crate::responses::QueryResult;
+use crate::responses::{QueryResult, make_chunk_downloader};
 use crate::responses::types::{data::DataResponse, error::ErrorResult, internal::InternalResult};
 use crate::requests::QueryRequest;
 
@@ -14,17 +14,19 @@ pub struct Session {
     pub(crate) host: String,
     pub(crate) account: String,
     pub(crate) region: Option<String>,
+    pub(crate) proxy: Option<String>,
     pub(crate) sequence_counter: Cell<u32>
 }
 
 impl Session {
 
-    pub fn new(client: reqwest::Client, host: &str, account: &str, region: Option<&str>) -> Self {
+    pub fn new(client: reqwest::Client, host: &str, account: &str, region: Option<&str>, proxy: &Option<String>) -> Self {
         Session {
             client,
             host: host.to_owned(),
             account: account.to_owned(),
             region: region.map(str::to_string),
+            proxy: proxy.clone(),
             sequence_counter: Cell::new(1)
         }
     }
@@ -108,8 +110,9 @@ impl Session {
         }
 
         if let Some(chunks) = internal.chunks.clone() {
+            let downloader = make_chunk_downloader(self, &internal)?;
             for chunk in chunks {
-                let loaded: Vec<T::ReturnType> = T::load_chunk(&internal, &chunk).await?;
+                let loaded: Vec<T::ReturnType> = chunk.load::<T>(&downloader, &internal.rowtype).await?;
                 rowset.extend(&mut loaded.into_iter());
             }
         }
