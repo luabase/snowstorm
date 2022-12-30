@@ -103,8 +103,12 @@ pub trait QueryDeserializer: Sized {
     }
 
     #[cfg(feature = "arrow")]
-    fn get_arrow_stream_from_rowset64(rowset: &str) -> Result<ArrowMetadataWithChunks, SnowflakeError> {
+    fn get_arrow_stream_from_rowset64(rowset: &str) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
         use arrow2::io::ipc::read;
+
+        if rowset.is_empty() {
+            return Ok(None);
+        }
 
         let data = base64::decode(rowset).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
         let mut stream: &[u8] = &data;
@@ -116,13 +120,13 @@ pub trait QueryDeserializer: Sized {
 
         if let Some(x) = stream.next() {
             match x {
-                Ok(read::StreamState::Some(chunk)) => Ok((metadata, Some(chunk))),
-                Ok(read::StreamState::Waiting) => Ok((metadata, None)),
+                Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
+                Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
                 Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
             }
         }
         else {
-            Ok((metadata, None))
+            Ok(Some((metadata, None)))
         }
     }
 
