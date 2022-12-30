@@ -3,6 +3,11 @@ use crate::errors::SnowflakeError;
 #[cfg(feature = "arrow")]
 use anyhow::anyhow;
 #[cfg(feature = "arrow")]
+use arrow2::{
+    datatypes::{DataType, Field},
+    scalar::Scalar,
+};
+#[cfg(feature = "arrow")]
 use chrono::prelude::*;
 use chrono::Duration;
 
@@ -20,7 +25,7 @@ pub(super) fn duration_from_timestamp_and_scale(timestamp: &i64, scale: &i64) ->
 }
 
 #[cfg(feature = "arrow")]
-pub(super) fn get_arrow_time_scale(field: &arrow2::datatypes::Field) -> Result<i64, SnowflakeError> {
+pub(super) fn get_arrow_time_scale(field: &Field) -> Result<i64, SnowflakeError> {
     match field.metadata.get("scale") {
         Some(s) => {
             let scale = s.parse::<u32>().map_err(|e| {
@@ -38,10 +43,9 @@ pub(super) fn get_arrow_time_scale(field: &arrow2::datatypes::Field) -> Result<i
 
 #[cfg(feature = "arrow")]
 pub(super) fn arrow_struct_to_naive_datetime(
-    vec: &[Box<dyn arrow2::scalar::Scalar>],
-    field: &arrow2::datatypes::Field,
+    vec: &[Box<dyn Scalar>],
+    field: &Field,
 ) -> Result<Option<NaiveDateTime>, SnowflakeError> {
-    use arrow2::datatypes::DataType;
     use arrow2::scalar::PrimitiveScalar;
 
     let timestamp: Option<i64> = (vec[0])
