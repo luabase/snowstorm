@@ -6,7 +6,7 @@ use crate::requests::QueryRequest;
 use anyhow::anyhow;
 use chrono::prelude::*;
 use serde_json::json;
-use std::{str, cell::Cell};
+use std::{str, sync::atomic::{AtomicU32, Ordering}};
 
 #[derive(Debug)]
 pub struct Session {
@@ -15,7 +15,7 @@ pub struct Session {
     pub(crate) account: String,
     pub(crate) region: Option<String>,
     pub(crate) proxy: Option<String>,
-    pub(crate) sequence_counter: Cell<u32>
+    pub(crate) sequence_counter: AtomicU32
 }
 
 impl Session {
@@ -27,23 +27,24 @@ impl Session {
             account: account.to_owned(),
             region: region.map(str::to_string),
             proxy: proxy.clone(),
-            sequence_counter: Cell::new(1)
+            sequence_counter: AtomicU32::new(1)
         }
     }
 
     pub async fn execute<T: QueryResult + Send + Sync>(&self, query: &str) -> Result<T, SnowflakeError> {
         let now = Utc::now();
+
         let req = QueryRequest {
             async_exec: false,
             parameters: Some(json!({
                 "PYTHON_CONNECTOR_QUERY_RESULT_FORMAT": Self::result_format()
             })),
             query_submission_time: now.timestamp_millis(),
-            sequence_id: self.sequence_counter.get(),
+            sequence_id: self.sequence_counter.load(Ordering::Relaxed),
             sql_text: query
         };
 
-        self.sequence_counter.set(self.sequence_counter.get() + 1);
+        self.sequence_counter.fetch_add(1, Ordering::Relaxed);
 
         let json = self.client
             .post(&self.get_queries_url("query-request"))
