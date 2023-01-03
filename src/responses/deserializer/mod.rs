@@ -205,7 +205,7 @@ fn get_arrow_from_rowset64(rowset: &str) -> Result<Option<ArrowMetadataWithChunk
     get_arrow_from_stream(&mut data)
 }
 
-//#[cfg(feature = "arrow")]
+#[cfg(feature = "arrow")]
 fn get_arrow_from_stream(mut stream: &[u8]) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
     use arrow2::io::ipc::read;
 
@@ -213,34 +213,19 @@ fn get_arrow_from_stream(mut stream: &[u8]) -> Result<Option<ArrowMetadataWithCh
         read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
     let schema = metadata.schema.clone();
 
-    println!("+++ A");
-
-    let stream_states = read::StreamReader::new(&mut stream, metadata.clone(), None)
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
-
-    println!("+++ B");
-
+    let mut reader = read::StreamReader::new(&mut stream, metadata.clone(), None);
     let mut chunks = vec![];
-    for state in stream_states {
-        dbg!("+++ STATE {state}");
-        if let read::StreamState::Some(chunk) = state {
-            chunks.push(chunk)
-        }
+
+    loop {
+        match reader.next() {
+            Some(x) => match x {
+                Ok(read::StreamState::Some(chunk)) => chunks.push(chunk),
+                Ok(read::StreamState::Waiting) => break,
+                Err(e) => return Err(SnowflakeError::new_deserialization_error(e.into())),
+            },
+            None => break,
+        };
     }
 
-    dbg!("+++ CHUNKS {chunks:?}");
-
     Ok(Some((schema, chunks)))
-
-    // if let Some(x) = stream.next() {
-    //     match x {
-    //         Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
-    //         Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
-    //         Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
-    //     }
-    // }
-    // else {
-    //     Ok(Some((metadata, None)))
-    // }
 }
