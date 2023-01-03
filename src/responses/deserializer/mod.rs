@@ -29,10 +29,10 @@ use arrow2::chunk::Chunk as ArrowChunk;
 #[cfg(feature = "arrow")]
 use arrow2::datatypes::Field as ArrowField;
 #[cfg(feature = "arrow")]
-use arrow2::io::ipc::read::StreamMetadata as ArrowStreamMetadata;
+use arrow2::datatypes::Schema as ArrowSchema;
 
 #[cfg(feature = "arrow")]
-type ArrowMetadataWithChunks = (ArrowStreamMetadata, Option<ArrowChunk<Box<dyn ArrowArray>>>);
+type ArrowMetadataWithChunks = (ArrowSchema, Vec<ArrowChunk<Box<dyn ArrowArray>>>);
 
 pub trait QueryDeserializer: Sized {
     type ReturnType;
@@ -46,8 +46,11 @@ pub trait QueryDeserializer: Sized {
     fn deserialize_rowset64(rowset: &str) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let mut rows: Vec<Self::ReturnType> = vec![];
 
-        if let Some((metadata, chunk)) = get_arrow_from_rowset64(rowset)? {
-            rows = Self::deserialize_arrow_chunk(metadata, chunk)?;
+        if let Some((metadata, chunks)) = get_arrow_from_rowset64(rowset)? {
+            for chunk in chunks {
+                let mut deserialized = Self::deserialize_arrow_chunk(&metadata, &chunk)?;
+                rows.append(&mut deserialized);
+            }
         }
 
         Ok(rows)
@@ -62,8 +65,11 @@ pub trait QueryDeserializer: Sized {
     fn deserialize_arrow_stream(stream: &mut [u8]) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
         let mut rows: Vec<Self::ReturnType> = vec![];
 
-        if let Some((metadata, chunk)) = get_arrow_from_stream(stream)? {
-            rows = Self::deserialize_arrow_chunk(metadata, chunk)?;
+        if let Some((metadata, chunks)) = get_arrow_from_stream(stream)? {
+            for chunk in chunks {
+                let mut deserialized = Self::deserialize_arrow_chunk(&metadata, &chunk)?;
+                rows.append(&mut deserialized);
+            }
         }
 
         Ok(rows)
@@ -71,8 +77,8 @@ pub trait QueryDeserializer: Sized {
 
     #[cfg(feature = "arrow")]
     fn deserialize_arrow_chunk(
-        metadata: ArrowStreamMetadata,
-        chunk: Option<ArrowChunk<Box<dyn ArrowArray>>>,
+        schema: &ArrowSchema,
+        chunk: &ArrowChunk<Box<dyn ArrowArray>>,
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError>;
 
     fn deserialize_value(value: &serde_json::Value, row_type: &RowType) -> Result<Value, SnowflakeError> {
@@ -199,23 +205,42 @@ fn get_arrow_from_rowset64(rowset: &str) -> Result<Option<ArrowMetadataWithChunk
     get_arrow_from_stream(&mut data)
 }
 
-#[cfg(feature = "arrow")]
+//#[cfg(feature = "arrow")]
 fn get_arrow_from_stream(mut stream: &[u8]) -> Result<Option<ArrowMetadataWithChunks>, SnowflakeError> {
     use arrow2::io::ipc::read;
 
     let metadata =
         read::read_stream_metadata(&mut stream).map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+    let schema = metadata.schema.clone();
 
-    let mut stream = read::StreamReader::new(&mut stream, metadata.clone(), None);
+    println!("+++ A");
 
-    if let Some(x) = stream.next() {
-        match x {
-            Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
-            Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
-            Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
+    let stream_states = read::StreamReader::new(&mut stream, metadata.clone(), None)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+
+    println!("+++ B");
+
+    let mut chunks = vec![];
+    for state in stream_states {
+        dbg!("+++ STATE {state}");
+        if let read::StreamState::Some(chunk) = state {
+            chunks.push(chunk)
         }
     }
-    else {
-        Ok(Some((metadata, None)))
-    }
+
+    dbg!("+++ CHUNKS {chunks:?}");
+
+    Ok(Some((schema, chunks)))
+
+    // if let Some(x) = stream.next() {
+    //     match x {
+    //         Ok(read::StreamState::Some(chunk)) => Ok(Some((metadata, Some(chunk)))),
+    //         Ok(read::StreamState::Waiting) => Ok(Some((metadata, None))),
+    //         Err(e) => Err(SnowflakeError::new_deserialization_error(e.into())),
+    //     }
+    // }
+    // else {
+    //     Ok(Some((metadata, None)))
+    // }
 }

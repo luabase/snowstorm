@@ -39,19 +39,15 @@ impl QueryDeserializer for HashMapResult {
 
     #[cfg(feature = "arrow")]
     fn deserialize_arrow_chunk(
-        metadata: arrow2::io::ipc::read::StreamMetadata,
-        chunk: Option<arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>>,
+        schema: &arrow2::datatypes::Schema,
+        chunk: &arrow2::chunk::Chunk<Box<dyn arrow2::array::Array>>,
     ) -> Result<Vec<Self::ReturnType>, SnowflakeError> {
-        let mut rows: Vec<Self::ReturnType> = vec![];
-
-        if let Some(chunk) = chunk {
-            rows = vec![Self::ReturnType::new(); chunk.len()];
-            for (idx, column) in chunk.columns().iter().enumerate() {
-                let field = &metadata.schema.fields[idx];
-                let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
-                for (i, c) in col.iter().enumerate() {
-                    rows[i].insert(field.name.clone(), c.clone());
-                }
+        let mut rows: Vec<Self::ReturnType> = vec![Self::ReturnType::new(); chunk.len()];
+        for (idx, column) in chunk.columns().iter().enumerate() {
+            let field = &schema.fields[idx];
+            let col = Self::deserialize_arrow_column(column.as_ref(), field)?;
+            for (i, c) in col.iter().enumerate() {
+                rows[i].insert(field.name.clone(), c.clone());
             }
         }
 

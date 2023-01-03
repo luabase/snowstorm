@@ -1,7 +1,7 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
 use snowstorm::{Snowstorm, errors::SnowflakeError};
-use snowstorm::responses::result::hashmap::HashMapResult;
+use snowstorm::responses::result::{vec::VecResult, hashmap::HashMapResult};
 use snowstorm::responses::types::value::Value;
 
 #[tokio::main]
@@ -21,13 +21,20 @@ async fn main() {
         "snowflake://{user}:{password}@{account}/?role={role}&database={database}&schema={schema}&warehouse={warehouse}"
     );
 
-    let client = Snowstorm::try_new_with_dsn(dsn).unwrap();
+    let client = Snowstorm::try_new_with_dsn(dsn).unwrap().proxy("http://127.0.0.1:9090");
     let session = client.connect().await.unwrap();
 
-    let tables = vec!["TEST", "NUMBER_TEST", "TIME_TEST", "TIMESTAMP_NTZ_TEST", "TIMESTAMP_TZ_TEST", "TIMESTAMP_LTZ_TEST"];
+    let tables = vec![
+        "snowstorm_test_data.public.test",
+        "snowstorm_test_data.public.number_test",
+        "snowstorm_test_data.public.time_test",
+        "snowstorm_test_data.public.timestamp_ntz_test",
+        "snowstorm_test_data.public.timestamp_tz_test",
+        "snowstorm_test_data.public.timestamp_ltz_test"
+    ];
 
     for table in tables {
-        let query = format!("SELECT * FROM snowstorm_test_data.public.{table}");
+        let query = format!("SELECT * FROM {table}");
         println!("+++ Running query {query}");
 
         let res = session.execute::<HashMapResult>(&query).await;
@@ -55,4 +62,8 @@ async fn main() {
             }
         }
     }
+
+    let query = "SELECT * FROM luabase.clickhouse.ethereum_transactions LIMIT 3000";
+    let res = session.execute::<VecResult>(query).await;
+    println!("Loaded {} transactions", res.unwrap().rowset.len());
 }
