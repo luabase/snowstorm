@@ -64,6 +64,7 @@ async fn main() {
     }
 
     let query = "SELECT * FROM luabase.clickhouse.ethereum_transactions LIMIT 3000";
+    println!("+++ Running query {query}");
     let res = session.execute::<VecResult>(query).await;
     println!("Loaded {} transactions", res.unwrap().rowset.len());
 }
