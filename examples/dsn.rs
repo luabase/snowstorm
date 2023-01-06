@@ -21,7 +21,7 @@ async fn main() {
         "snowflake://{user}:{password}@{account}/?role={role}&database={database}&schema={schema}&warehouse={warehouse}"
     );
 
-    let client = Snowstorm::try_new_with_dsn(dsn).unwrap().proxy("http://127.0.0.1:9090");
+    let client = Snowstorm::try_new_with_dsn(dsn).unwrap();
     let session = client.connect().await.unwrap();
 
     let tables = vec![
@@ -62,9 +62,4 @@ async fn main() {
             }
         }
     }
-
-    let query = "SELECT * FROM luabase.clickhouse.ethereum_transactions LIMIT 3000";
-    println!("+++ Running query {query}");
-    let res = session.execute::<VecResult>(query).await;
-    println!("Loaded {} transactions", res.unwrap().rowset.len());
 }
