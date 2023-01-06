@@ -2,6 +2,8 @@ pub mod binary;
 pub mod boolean;
 pub mod datetime;
 pub mod datetime_utc;
+#[cfg(feature = "arrow")]
+pub mod decimal;
 pub(self) mod epoch;
 pub mod float;
 pub mod hashmap;
@@ -139,6 +141,7 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::boolean::from_arrow as boolean_from_arrow;
         use crate::responses::deserializer::datetime::from_arrow as datetime_from_arrow;
         use crate::responses::deserializer::datetime_utc::from_arrow as datetime_utc_from_arrow;
+        use crate::responses::deserializer::decimal::from_arrow as decimal_from_arrow;
         use crate::responses::deserializer::float::from_arrow as float_from_arrow;
         use crate::responses::deserializer::hashmap::from_arrow as hashmap_from_arrow;
         use crate::responses::deserializer::integer::from_arrow as integer_from_arrow;
@@ -149,6 +152,7 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::variant::from_arrow as variant_from_arrow;
         use crate::responses::deserializer::vec::from_arrow as vec_from_arrow;
         use anyhow::anyhow;
+        use arrow2::datatypes::DataType;
 
         let row_type = RowType::from_arrow_field(field);
 
@@ -172,6 +176,7 @@ pub trait QueryDeserializer: Sized {
                 arrow2::datatypes::DataType::Float16 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float32 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float64 => float_from_arrow(column, field),
+                DataType::Decimal(_, scale) => decimal_from_arrow(scale, column, field),
                 x => Err(SnowflakeError::new_deserialization_error_with_field(
                     anyhow!("Invalid float data type {:?}", x),
                     field.name.clone(),

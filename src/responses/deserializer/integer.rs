@@ -26,6 +26,7 @@ pub(super) fn from_arrow(
     column: &dyn arrow2::array::Array,
     field: &arrow2::datatypes::Field,
 ) -> Result<Vec<Value>, SnowflakeError> {
+    use crate::responses::deserializer::decimal::from_arrow as decimal_from_arrow;
     use anyhow::anyhow;
     use arrow2::datatypes::DataType;
 
@@ -38,7 +39,7 @@ pub(super) fn from_arrow(
         DataType::UInt32 => downcast_integer::<u32>(column, field),
         DataType::Int64 => downcast_integer::<i64>(column, field),
         DataType::UInt64 => downcast_integer::<u64>(column, field),
-        DataType::Decimal(..) => downcast_integer::<i128>(column, field),
+        DataType::Decimal(_, scale) => decimal_from_arrow(&scale, column, field),
         _ => Err(SnowflakeError::new_deserialization_error_with_field(
             anyhow!("Invalid integer data type {:?}", field.data_type),
             field.name.clone(),
