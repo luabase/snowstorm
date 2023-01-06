@@ -5,6 +5,7 @@ use crate::responses::types::{internal::InternalResult, row_type::RowType};
 use crate::responses::{get_query_detail_url, QueryResult};
 use crate::session::Session;
 
+#[derive(Clone, Debug)]
 pub struct JsonMapResult {
     pub rowtype: Vec<RowType>,
     pub rowset: Vec<serde_json::Map<String, serde_json::Value>>,
