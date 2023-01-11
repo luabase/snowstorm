@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use decimal_rs::Decimal;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
@@ -8,6 +9,7 @@ use std::fmt;
 pub enum Value {
     Binary(Vec<u8>),
     Boolean(bool),
+    Decimal(Decimal),
     Integer(i128),
     Float(f64),
     String(String),
@@ -30,6 +32,7 @@ impl fmt::Display for Value {
         match self {
             Value::Binary(v) => write!(f, "{:?}", *v),
             Value::Boolean(v) => write!(f, "{:?}", *v),
+            Value::Decimal(v) => write!(f, "{:?}", *v),
             Value::Integer(v) => write!(f, "{:?}", *v),
             Value::Float(v) => write!(f, "{:?}", *v),
             Value::String(v) => write!(f, "{}", *v),
@@ -56,6 +59,7 @@ impl fmt::Display for Value {
 pub enum ValueType {
     Binary,
     Boolean,
+    Decimal,
     Integer,
     Float,
     String,

@@ -6,6 +6,7 @@ pub trait QuerySerializer {
         match val {
             Value::Binary(v) => serde_json::to_value(v),
             Value::Boolean(v) => serde_json::to_value(v),
+            Value::Decimal(v) => serde_json::to_value(v),
             Value::Integer(x) => {
                 if cfg!(integer128) {
                     serde_json::to_value(x)

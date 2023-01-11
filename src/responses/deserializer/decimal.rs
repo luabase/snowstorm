@@ -1,6 +1,6 @@
 use crate::errors::SnowflakeError;
 use crate::responses::types::value::Value;
-use rust_decimal::prelude::*;
+use decimal_rs::Decimal;
 
 pub(super) fn from_arrow(
     scale: &usize,
@@ -9,12 +9,11 @@ pub(super) fn from_arrow(
 ) -> Result<Vec<Value>, SnowflakeError> {
     use crate::responses::deserializer::null::from_arrow as null_from_arrow;
     use crate::utils::until_err;
-    use arrow2::array::Utf8Array;
-
-    println!("+++ COLUMN {scale} {column:?}");
+    use arrow2::array::PrimitiveArray;
 
     let mut err = Ok(());
-    let downcasted = column.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
+    let downcasted = column.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+
     let res: Vec<Value> = downcasted
         .iter()
         .map(|x| {
@@ -23,14 +22,15 @@ pub(super) fn from_arrow(
                 None => return null_from_arrow(field),
             };
 
-            println!("+++ VALUE {value:?}");
+            let decimal = Decimal::from_parts(*value as u128, *scale as i16, value.is_negative())
+                .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
 
             if field.is_nullable {
-                let boxed = Box::new(Value::Float(0.0));
+                let boxed = Box::new(Value::Decimal(decimal));
                 Ok(Value::Nullable(Some(boxed)))
             }
             else {
-                Ok(Value::Float(0.0))
+                Ok(Value::Decimal(decimal))
             }
         })
         .scan(&mut err, until_err)
