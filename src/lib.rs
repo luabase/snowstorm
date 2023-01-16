@@ -1,6 +1,6 @@
 pub mod errors;
-pub mod responses;
 pub mod requests;
+pub mod responses;
 pub mod session;
 
 mod utils;
@@ -8,15 +8,14 @@ mod utils;
 use anyhow::anyhow;
 use errors::SnowflakeError;
 use requests::{DataRequest, LoginRequest};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
+use reqwest::Url;
 use responses::result::vec::VecResult;
 use responses::types::{data::DataResponse, login::LoginResponse};
 use serde_json::json;
 use session::Session;
 use std::collections::HashMap;
-use reqwest::Url;
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use utils::urldecode_some;
-
 
 #[derive(Debug)]
 pub struct Snowstorm {
@@ -32,17 +31,12 @@ pub struct Snowstorm {
     warehouse: Option<String>,
 
     // Optional settings
-    proxy: Option<String>
+    proxy: Option<String>,
 }
 
 impl Snowstorm {
-
     /// Creates a minimal client instance able to connect to Snowflake.
-    pub fn new(
-        account: String,
-        user: String,
-        password: String
-    ) -> Self {
+    pub fn new(account: String, user: String, password: String) -> Self {
         Snowstorm {
             account,
             password,
@@ -51,7 +45,7 @@ impl Snowstorm {
             database: None,
             schema: None,
             warehouse: None,
-            proxy: None
+            proxy: None,
         }
     }
 
@@ -65,26 +59,34 @@ impl Snowstorm {
     /// DSN should be in the following format:
     /// snowflake://{user}:{password}@{account}/?role={role}&database={database}&schema={schema}&warehouse={warehouse}
     pub fn try_new_with_dsn(dsn: String) -> Result<Self, SnowflakeError> {
-        let url = Url::parse(&dsn)
-            .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
+        let url = Url::parse(&dsn).map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
         if url.scheme() != "snowflake" {
-            return Err(SnowflakeError::GeneralError(anyhow!("Invalid proto {}, expected 'snowflake'", url.scheme())));
+            return Err(SnowflakeError::GeneralError(anyhow!(
+                "Invalid proto {}, expected 'snowflake'",
+                url.scheme()
+            )));
         }
 
         let user = urldecode_some(Some(url.username()));
         if user.is_empty() {
-            return Err(SnowflakeError::GeneralError(anyhow!("Username is required, but missing from DSN")));
+            return Err(SnowflakeError::GeneralError(anyhow!(
+                "Username is required, but missing from DSN"
+            )));
         }
 
         let password = urldecode_some(url.password());
         if password.is_empty() {
-            return Err(SnowflakeError::GeneralError(anyhow!("Password is required, but missing from DSN")));
+            return Err(SnowflakeError::GeneralError(anyhow!(
+                "Password is required, but missing from DSN"
+            )));
         }
 
         let account = urldecode_some(url.host_str());
         if account.is_empty() {
-            return Err(SnowflakeError::GeneralError(anyhow!("Account is required, but missing from DSN")));
+            return Err(SnowflakeError::GeneralError(anyhow!(
+                "Account is required, but missing from DSN"
+            )));
         }
 
         let query: HashMap<_, _> = url.query_pairs().into_owned().collect();
@@ -101,7 +103,7 @@ impl Snowstorm {
             database,
             schema,
             warehouse,
-            proxy: None
+            proxy: None,
         })
     }
 
@@ -109,19 +111,15 @@ impl Snowstorm {
     ///
     /// Assumes default role, database, schema and warehouse if specified.
     pub async fn connect(&self) -> Result<Session, SnowflakeError> {
-        let headers = Snowstorm::get_headers(None)
-            .map_err(SnowflakeError::GeneralError)?;
+        let headers = Snowstorm::get_headers(None).map_err(SnowflakeError::GeneralError)?;
 
-        let mut builder = reqwest::Client::builder()
-            .default_headers(headers);
+        let mut builder = reqwest::Client::builder().default_headers(headers);
 
         if let Some(proxy) = &self.proxy {
             builder = builder.proxy(reqwest::Proxy::https(proxy).unwrap());
         }
 
-        let client = builder
-            .build()
-            .map_err(|e| SnowflakeError::GeneralError(e.into()))?;
+        let client = builder.build().map_err(|e| SnowflakeError::GeneralError(e.into()))?;
 
         let (account_name, region) = &self.account.split_once('.').unwrap_or((&self.account, ""));
 
@@ -135,47 +133,58 @@ impl Snowstorm {
                 session_parameters: Some(json!({
                     "TIMEZONE": "Etc/GMT",
                     "CLIENT_PREFETCH_THREADS": 4
-                }))
-            }
+                })),
+            },
         };
 
         let body = client
             .post(&self.get_session_url("login-request"))
             .json(&req)
-            .send().await
+            .send()
+            .await
             .map_err(|e| SnowflakeError::AuthenticationError(e.into()))?;
+
+        if let Err(e) = body.error_for_status_ref() {
+            return match e.status() {
+                Some(status) => match status {
+                    reqwest::StatusCode::FORBIDDEN => Err(SnowflakeError::AuthenticationError(anyhow!(
+                        "Please check if correct credentials are being used. You might need to include \
+                        region and service in the account name such as `us-central1.gcp`"
+                    ))),
+                    status_code => Err(SnowflakeError::GeneralError(anyhow!("Snowflake error: {status_code}"))),
+                },
+                None => Err(SnowflakeError::GeneralError(e.into())),
+            };
+        }
 
         let text = body
-            .text().await
+            .text()
+            .await
             .map_err(|e| SnowflakeError::AuthenticationError(e.into()))?;
 
-        let res: DataResponse<serde_json::Value> = serde_json::from_str(&text)
-            .map_err(|e| {
-                log::error!("Failed to authenticate due to deserialization error.");
-                SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
-            })?;
+        let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
+            log::error!("Failed to authenticate due to deserialization error.");
+            SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
+        })?;
 
         if !res.success {
             if let Some(message) = res.message {
                 return Err(SnowflakeError::AuthenticationError(anyhow!(message)));
             }
             else {
-                return Err(SnowflakeError::AuthenticationError(
-                    anyhow!("Failed to authenticate, but no reason was given by Snowflake API")
-                ));
+                return Err(SnowflakeError::AuthenticationError(anyhow!(
+                    "Failed to authenticate, but no reason was given by Snowflake API"
+                )));
             }
         }
 
-        let data: LoginResponse = serde_json::from_value(res.data)
-            .map_err(|e| {
-                log::error!(
-                    "Failed to authenticate due to data deserialization error."
-                );
-                SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
-            })?;
+        let data: LoginResponse = serde_json::from_value(res.data).map_err(|e| {
+            log::error!("Failed to authenticate due to data deserialization error.");
+            SnowflakeError::new_deserialization_error_with_value(e.into(), text.to_owned())
+        })?;
 
-        let session_headers = Snowstorm::get_headers(Some(data.token.as_str()))
-            .map_err(SnowflakeError::GeneralError)?;
+        let session_headers =
+            Snowstorm::get_headers(Some(data.token.as_str())).map_err(SnowflakeError::GeneralError)?;
 
         let mut session_builder = reqwest::Client::builder()
             .gzip(true)
@@ -195,7 +204,7 @@ impl Snowstorm {
             &self.get_host(),
             account_name,
             (!region.is_empty()).then_some(*region),
-            &self.proxy
+            &self.proxy,
         );
 
         if let Some(role) = &self.role {
@@ -203,7 +212,9 @@ impl Snowstorm {
         }
 
         if let Some(database) = &self.database {
-            _ = session.execute::<VecResult>(&format!("USE DATABASE {database}")).await?
+            _ = session
+                .execute::<VecResult>(&format!("USE DATABASE {database}"))
+                .await?
         }
 
         if let Some(schema) = &self.schema {
@@ -211,7 +222,9 @@ impl Snowstorm {
         }
 
         if let Some(warehouse) = &self.warehouse {
-            _ = session.execute::<VecResult>(&format!("USE WAREHOUSE {warehouse}")).await?
+            _ = session
+                .execute::<VecResult>(&format!("USE WAREHOUSE {warehouse}"))
+                .await?
         }
 
         Ok(session)
@@ -225,7 +238,10 @@ impl Snowstorm {
     fn get_session_url(&self, command: &str) -> String {
         let uuid = uuid::Uuid::new_v4();
         let guid = uuid::Uuid::new_v4();
-        let url = format!("{}/session/v1/{command}?request_id={uuid}&request_guid={guid}", self.get_host());
+        let url = format!(
+            "{}/session/v1/{command}?request_id={uuid}&request_guid={guid}",
+            self.get_host()
+        );
         log::debug!("Using session url {url}");
         url
     }
@@ -233,12 +249,17 @@ impl Snowstorm {
     fn get_headers(token: Option<&str>) -> Result<HeaderMap, anyhow::Error> {
         let mut headers = HeaderMap::with_capacity(4);
         headers.append(ACCEPT, "application/snowflake".parse()?);
-        headers.append(AUTHORIZATION, format!("Snowflake Token=\"{}\"", token.unwrap_or("None")).parse()?);
+        headers.append(
+            AUTHORIZATION,
+            format!("Snowflake Token=\"{}\"", token.unwrap_or("None")).parse()?,
+        );
         headers.append(CONTENT_TYPE, "application/json".parse()?);
-        headers.append(USER_AGENT, concat!(env!("CARGO_PKG_NAME"), '/', env!("CARGO_PKG_VERSION")).parse()?);
+        headers.append(
+            USER_AGENT,
+            concat!(env!("CARGO_PKG_NAME"), '/', env!("CARGO_PKG_VERSION")).parse()?,
+        );
         Ok(headers)
     }
-
 }
 
 #[cfg(test)]
@@ -248,15 +269,13 @@ mod tests {
 
     #[test]
     fn test_dsn_builder() -> Result<(), anyhow::Error> {
-        Snowstorm::try_new_with_dsn("fail://".to_owned())
-            .expect_err("Should have failed due to invalid scheme");
+        Snowstorm::try_new_with_dsn("fail://".to_owned()).expect_err("Should have failed due to invalid scheme");
 
         Snowstorm::try_new_with_dsn("snowflake://host".to_owned())
             .expect_err("Should have failed due to missing username");
 
         Snowstorm::try_new_with_dsn("snowflake://user@account".to_owned())
             .expect_err("Should have failed due to missing password");
-
 
         let user = "test_user";
         let password = "test_password@%_$%";
@@ -282,5 +301,4 @@ mod tests {
 
         Ok(())
     }
-
 }
