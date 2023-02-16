@@ -1,7 +1,7 @@
 mod support;
 
 use snowstorm::errors::SnowflakeError;
-use snowstorm::responses::result::{hashmap::HashMapResult, jsonmap::JsonMapResult, vec::VecResult};
+use snowstorm::responses::result::{hashmap::HashMapResult, jsonmap::JsonMapResult, vec::VecResult, jsonvec::JsonVecResult};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]
@@ -68,6 +68,18 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
     let session = client.connect().await.expect("Session should have been created");
     let res = session.execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
     assert_eq!(res.rowset.len(), res.total);
+    Ok(())
+}
+
+#[tokio::test]
+async fn execute_select_into_jsonvec_success() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_full_client().expect("Client should have been created");
+    let session = client.connect().await.expect("Session should have been created");
+    let res = session.execute::<JsonVecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
+    assert_eq!(res.rowset.len(), res.total);
+    log::info!("{:?}", res);
     Ok(())
 }
 
