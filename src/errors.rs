@@ -2,17 +2,17 @@ use crate::responses::types::error::ErrorResult;
 
 #[derive(thiserror::Error, Debug)]
 pub enum SnowflakeError {
-    #[error("Snowflake authentication error: {0:?}")]
+    #[error("Snowflake authentication error: {0}")]
     AuthenticationError(anyhow::Error),
-    #[error("Chunk loading error: {0:?}")]
+    #[error("Chunk loading error: {0}")]
     ChunkLoadingError(anyhow::Error),
-    #[error("Serialization error: {0:?}")]
+    #[error("Serialization error: {0}")]
     SerializationError(anyhow::Error),
-    #[error("Snowflake deserialization error: {0:?} {1:?}")]
+    #[error("Snowflake deserialization error: {0} {1:?}")]
     DeserializationError(anyhow::Error, Option<DeserializationErrorContext>),
-    #[error("Snowflake execution error: {0:?}")]
+    #[error("Snowflake execution error: {0}")]
     ExecutionError(anyhow::Error, Option<ErrorResult>),
-    #[error("Snowflake error: {0:?}")]
+    #[error("Snowflake error: {0}")]
     GeneralError(anyhow::Error),
 }
 
