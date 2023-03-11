@@ -1,9 +1,9 @@
-use rotenv::dotenv;
-use rotenv_codegen::dotenv;
-use snowstorm::Snowstorm;
-use snowstorm::responses::result::vec::VecResult;
 use log::Level;
 use logging_timer::{finish, timer};
+use rotenv::dotenv;
+use rotenv_codegen::dotenv;
+use snowstorm::responses::result::vec::VecResult;
+use snowstorm::Snowstorm;
 
 #[tokio::main]
 async fn main() {
@@ -32,5 +32,5 @@ async fn main() {
         let timer = timer!(Level::Info; "QUERY");
         let res = session.execute::<VecResult>(query).await;
         finish!(timer, "Loaded {} transactions", res.unwrap().rowset.len());
-    };
+    }
 }

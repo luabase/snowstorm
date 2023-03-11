@@ -10,7 +10,10 @@ async fn execute_success() -> Result<(), anyhow::Error> {
 
     let client = new_valid_client();
     let session = client.connect().await.expect("Session should have been created");
-    session.execute::<VecResult>("SHOW GRANTS").await.expect("Result should have been returned");
+    session
+        .execute::<VecResult>("SHOW GRANTS")
+        .await
+        .expect("Result should have been returned");
     Ok(())
 }
 
@@ -22,17 +25,14 @@ async fn execute_fail() -> Result<(), anyhow::Error> {
     let session = client.connect().await.expect("Session should have been created");
     match session.execute::<VecResult>("INVALID QUERY").await {
         Ok(_) => panic!("Error should've occurred"),
-        Err(e) => {
-            match e {
-                SnowflakeError::ExecutionError(_, r) => {
-                    let r = r.unwrap();
-                    assert_eq!(r.error_type.unwrap(), "COMPILATION");
-                    assert_eq!(r.internal_error, false);
-                }
-                _ => panic!("SnowflakeError::ExecutionError should've been raised")
+        Err(e) => match e {
+            SnowflakeError::ExecutionError(_, r) => {
+                let r = r.unwrap();
+                assert_eq!(r.error_type.unwrap(), "COMPILATION");
+                assert_eq!(r.internal_error, false);
             }
-
-        }
+            _ => panic!("SnowflakeError::ExecutionError should've been raised"),
+        },
     }
 
     Ok(())
@@ -44,7 +44,10 @@ async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
+    let res = session
+        .execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .await
+        .unwrap();
     assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
@@ -55,7 +58,10 @@ async fn execute_select_into_hashmap_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
+    let res = session
+        .execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .await
+        .unwrap();
     assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
@@ -66,7 +72,10 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST").await.unwrap();
+    let res = session
+        .execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .await
+        .unwrap();
     assert_eq!(res.rowset.len(), res.total);
     Ok(())
 }
@@ -77,7 +86,8 @@ async fn execute_select_into_chunked_success() -> Result<(), anyhow::Error> {
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
-    let res = session.execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS LIMIT 2000")
+    let res = session
+        .execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS LIMIT 2000")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), 2000);

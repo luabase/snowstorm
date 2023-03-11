@@ -79,7 +79,8 @@ fn _arrow_timestamp_to_time<T: num::NumCast + Copy>(
         Some(ts) => {
             let scale = get_arrow_time_scale(field)?;
             let cast: i64 = num::cast(*ts).unwrap();
-            let value = NaiveTime::from_hms_opt(0, 0, 0).unwrap() + duration_from_arrow_timestamp_and_scale(&cast, &scale);
+            let value =
+                NaiveTime::from_hms_opt(0, 0, 0).unwrap() + duration_from_arrow_timestamp_and_scale(&cast, &scale);
 
             if field.is_nullable {
                 let boxed = Box::new(Value::NaiveTime(value));
