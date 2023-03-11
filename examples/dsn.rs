@@ -1,8 +1,8 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
-use snowstorm::{Snowstorm, errors::SnowflakeError};
-use snowstorm::responses::result::{vec::VecResult, hashmap::HashMapResult};
+use snowstorm::responses::result::hashmap::HashMapResult;
 use snowstorm::responses::types::value::Value;
+use snowstorm::{errors::SnowflakeError, Snowstorm};
 
 #[tokio::main]
 async fn main() {
@@ -30,7 +30,7 @@ async fn main() {
         "snowstorm_test_data.public.time_test",
         "snowstorm_test_data.public.timestamp_ntz_test",
         "snowstorm_test_data.public.timestamp_tz_test",
-        "snowstorm_test_data.public.timestamp_ltz_test"
+        "snowstorm_test_data.public.timestamp_ltz_test",
     ];
 
     for table in tables {
@@ -49,17 +49,14 @@ async fn main() {
                     }
                     println!("---");
                 }
-            },
-            Err(e) => {
-                match e {
-                    SnowflakeError::ExecutionError(msg, details) => {
-                        println!("Error: {msg}");
-                        println!("Detail: {details:?}");
-                    },
-                    _ => println!("Error: {e}")
-                }
-
             }
+            Err(e) => match e {
+                SnowflakeError::ExecutionError(msg, details) => {
+                    println!("Error: {msg}");
+                    println!("Detail: {details:?}");
+                }
+                _ => println!("Error: {e}"),
+            },
         }
     }
 }
