@@ -14,6 +14,7 @@ anyhow = "1.0"
 arrow2 = { version = "0.15.0", features = ["io_ipc", "io_json"], optional = true }
 async-compression = { version = "0.3.15", features = ["futures-io", "gzip"] }
 async-trait = "0.1"
+backoff = "0.4.0"
 base64 = "0.20.0"
 chrono = { version = "0.4", features = ["serde"] }
 decimal-rs = { version = "0.1.41", features = ["serde"] }
@@ -27,9 +28,11 @@ reqwest = { version = "0.11", features = ["deflate", "gzip", "json", "stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_urlencoded = "0.7.1"
+strum_macros = "0.24.3"
 thiserror = "1.0"
 time = "0.3"
 tokio = { version = "1", features = ["full"] }
+url-escape = "0.1.1"
 uuid = { version = "1.2", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]

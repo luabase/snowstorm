@@ -1,6 +1,6 @@
 use rotenv::dotenv;
 use rotenv_codegen::dotenv;
-use snowstorm::responses::result::{hashmap::HashMapResult, vec::VecResult};
+use snowstorm::responses::result::hashmap::HashMapResult;
 use snowstorm::responses::types::value::Value;
 use snowstorm::{errors::SnowflakeError, Snowstorm};
 
