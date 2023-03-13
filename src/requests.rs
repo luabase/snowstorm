@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct DataRequest<S> {
-    pub data: S
+    pub data: S,
 }
 
 #[derive(Debug, Serialize)]
@@ -13,7 +13,7 @@ pub struct LoginRequest<'a> {
     pub password: &'a str,
     pub client_app_id: &'a str,
     pub client_app_version: &'a str,
-    pub session_parameters: Option<serde_json::Value>
+    pub session_parameters: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -23,5 +23,5 @@ pub struct QueryRequest<'a> {
     pub parameters: Option<serde_json::Value>,
     pub query_submission_time: i64,
     pub sequence_id: u32,
-    pub sql_text: &'a str
+    pub sql_text: &'a str,
 }
