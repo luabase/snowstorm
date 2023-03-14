@@ -22,7 +22,7 @@ pub(super) fn from_arrow(
                 None => return null_from_arrow(field),
             };
 
-            let decimal = Decimal::from_parts(*value as u128, *scale as i16, value.is_negative())
+            let decimal = Decimal::from_parts(value.abs() as u128, *scale as i16, value.is_negative())
                 .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
 
             if field.is_nullable {
