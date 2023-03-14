@@ -43,7 +43,7 @@ async fn execute_async_fail() -> Result<(), anyhow::Error> {
 }
 
 #[tokio::test]
-async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
+async fn execute_async_select_into_vec_success() -> Result<(), anyhow::Error> {
     common_init();
 
     let client = new_full_client().expect("Client should have been created");
