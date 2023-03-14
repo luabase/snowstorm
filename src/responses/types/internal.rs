@@ -1,4 +1,4 @@
-use crate::responses::types::{chunk::Chunk, query::QueryStatus, row_type::RowType};
+use crate::responses::types::{chunk::Chunk, error::InternalAsyncErrorResult, query::QueryStatus, row_type::RowType};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -36,4 +36,6 @@ pub struct InternalMonitoringQueriesResult {
 pub struct InternalMonitoringQueryResult {
     pub id: String,
     pub status: QueryStatus,
+    #[serde(flatten)]
+    pub error_result: InternalAsyncErrorResult,
 }

@@ -6,7 +6,7 @@ use crate::responses::types::{
     internal::{InternalInitAsyncQueryResult, InternalMonitoringQueriesResult, InternalResult},
     query::QueryStatus,
 };
-use crate::responses::{make_chunk_downloader, QueryResult};
+use crate::responses::{get_query_detail_url, make_chunk_downloader, QueryResult};
 
 use anyhow::anyhow;
 use backoff::backoff::Backoff;
@@ -54,7 +54,7 @@ impl Session {
     pub async fn execute_async<T: QueryResult + Send + Sync>(&self, query: &str) -> Result<T, SnowflakeError> {
         let init_res: InternalInitAsyncQueryResult = self.execute_query_request(query, true).await?;
 
-        self.await_async_query(&init_res).await?;
+        self.await_async_query(query, &init_res).await?;
         let query_id = &init_res.query_id;
         self.execute(&format!("select * from table(result_scan('{query_id}'))"))
             .await
@@ -99,6 +99,7 @@ impl Session {
 
     async fn await_async_query(
         &self,
+        query: &str,
         init_async_query_res: &InternalInitAsyncQueryResult,
     ) -> Result<(), SnowflakeError> {
         let query_id = &init_async_query_res.query_id;
@@ -140,10 +141,8 @@ impl Session {
             let monitoring_result: InternalMonitoringQueriesResult = serde_json::from_value(res.data.clone())
                 .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
 
-            let query_status = monitoring_result
-                .queries
-                .get(0)
-                .map_or(QueryStatus::NoData, |res| res.status.clone());
+            let query_result = monitoring_result.queries.get(0);
+            let query_status = query_result.map_or(QueryStatus::NoData, |res| res.status.clone());
 
             if !query_status.is_still_running() {
                 if query_status == QueryStatus::Success {
@@ -151,9 +150,18 @@ impl Session {
                     return Ok(());
                 }
                 else {
+                    log::debug!("Async snowflake query failed with query result {:?}", query_result);
+                    let error_result = query_result.map(|qr| {
+                        qr.error_result
+                            .to_error_result(query_id, &get_query_detail_url(self, query_id))
+                    });
+                    let message = query_result
+                        .map(|qr| qr.error_result.error_message.clone())
+                        .unwrap_or_default()
+                        .unwrap_or_default();
                     return Err(SnowflakeError::ExecutionError(
-                        anyhow!("Status of query '{query_id}' is {query_status}, results are unavailable."),
-                        None,
+                        anyhow!("Failed to execute query '{query}', with reason: {message}"),
+                        error_result,
                     ));
                 }
             }
@@ -187,7 +195,11 @@ impl Session {
         }
     }
 
-    async fn execute_query_request<T: DeserializeOwned>(&self, query: &str, async_exec: bool) -> Result<T, SnowflakeError> {
+    async fn execute_query_request<T: DeserializeOwned>(
+        &self,
+        query: &str,
+        async_exec: bool,
+    ) -> Result<T, SnowflakeError> {
         let now = Utc::now();
         let req = QueryRequest {
             async_exec: async_exec,
@@ -238,7 +250,6 @@ impl Session {
 
         let parsed: T = serde_json::from_value(res.data.clone())
             .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
-
         Ok(parsed)
     }
 
