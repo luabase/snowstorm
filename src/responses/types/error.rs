@@ -43,3 +43,49 @@ impl ErrorResult {
         })
     }
 }
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InternalAsyncErrorResult {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub internal: bool,
+}
+
+impl InternalAsyncErrorResult {
+    pub(crate) fn to_error_result(&self, query_id: &String, query_detail_url: &String) -> ErrorResult {
+        let error_message = self.error_message.clone().unwrap_or_default();
+        let error_code = self.error_code.clone().unwrap_or_default();
+        ErrorResult {
+            // Use the whole message if it's a unknown type.
+            error_type: self.error_type(&error_message),
+            error_code,
+            internal_error: self.internal,
+            line: self.line(&error_message),
+            pos: self.pos(&error_message),
+            query_id: query_id.clone(),
+            query_detail_url: query_detail_url.clone(),
+        }
+    }
+
+    fn error_type(&self, error_message: &String) -> Option<String> {
+        if str::starts_with(error_message, "SQL compilation error") {
+            return Some("COMPILATION".to_owned());
+        }
+        return None;
+    }
+
+    fn line(&self, error_message: &String) -> Option<i32> {
+        regex::Regex::new(r"line (\d+)")
+            .unwrap()
+            .captures(error_message)
+            .and_then(|cap| cap.get(0).and_then(|l| l.as_str().parse::<i32>().ok()))
+    }
+
+    fn pos(&self, error_message: &String) -> Option<i32> {
+        regex::Regex::new(r"position (\d+)")
+            .unwrap()
+            .captures(error_message)
+            .and_then(|cap| cap.get(0).and_then(|l| l.as_str().parse::<i32>().ok()))
+    }
+}
