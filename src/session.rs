@@ -12,6 +12,7 @@ use anyhow::anyhow;
 use backoff::backoff::Backoff;
 use chrono::prelude::*;
 use reqwest::header::ACCEPT;
+use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::json;
 use std::thread;
@@ -127,11 +128,14 @@ impl Session {
                 .execute(json)
                 .await
                 .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+            let status = body.status();
 
             let text = body
                 .text()
                 .await
                 .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+
+            self.return_if_error(&status, &text)?;
 
             let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
                 log::error!("Failed to execute monitoring query {query_id} due to deserialization error.");
@@ -221,11 +225,14 @@ impl Session {
             .execute(json)
             .await
             .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+        let status = body.status();
 
         let text = body
             .text()
             .await
             .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+
+        self.return_if_error(&status, &text)?;
 
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
             log::error!("Failed to execute query {query} due to deserialization error.");
@@ -251,6 +258,20 @@ impl Session {
         let parsed: T = serde_json::from_value(res.data.clone())
             .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
         Ok(parsed)
+    }
+
+    fn return_if_error(&self, status: &StatusCode, text: &String) -> Result<(), SnowflakeError> {
+        if !status.is_success() {
+            let err = SnowflakeError::ExecutionError(
+                anyhow!("Non-successful response from Snowflake API. Status: {status}."),
+                None,
+            );
+            // Debug fmt of a SnowflakeError converted to anyhow::Error drops non-first tuple struct elements for some reason.
+            // Print out the text here for traceability.
+            log::warn!("Snowflake API error: {err}; With text {:?}", text);
+            return Err(err);
+        }
+        Ok(())
     }
 
     fn get_queries_url(&self, command: &str) -> String {
