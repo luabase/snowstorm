@@ -12,6 +12,7 @@ use anyhow::anyhow;
 use backoff::backoff::Backoff;
 use chrono::prelude::*;
 use reqwest::header::ACCEPT;
+use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::json;
 use std::thread;
@@ -127,11 +128,14 @@ impl Session {
                 .execute(json)
                 .await
                 .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+            let status = body.status();
 
             let text = body
                 .text()
                 .await
                 .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+
+            self.return_if_error(&status, &text, Some(query_id.clone()))?;
 
             let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
                 log::error!("Failed to execute monitoring query {query_id} due to deserialization error.");
@@ -223,11 +227,14 @@ impl Session {
             .execute(json)
             .await
             .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+        let status = body.status();
 
         let text = body
             .text()
             .await
             .map_err(|e| SnowflakeError::ExecutionError(e.into(), None))?;
+
+        self.return_if_error(&status, &text, None)?;
 
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
             log::error!("Failed to execute query {query} with URL {query_url} due to deserialization error.");
@@ -253,6 +260,37 @@ impl Session {
         let parsed: T = serde_json::from_value(res.data.clone())
             .map_err(|e| SnowflakeError::new_deserialization_error_with_value(e.into(), res.data.to_string()))?;
         Ok(parsed)
+    }
+
+    fn return_if_error(
+        &self,
+        status: &StatusCode,
+        text: &String,
+        query_id: Option<String>,
+    ) -> Result<(), SnowflakeError> {
+        match status.is_success() {
+            true => Ok(()),
+            false => {
+                let query_detail_url = match &query_id {
+                    Some(id) => get_query_detail_url(self, id),
+                    None => "".to_owned(),
+                };
+                let query_id_str = query_id.unwrap_or_default();
+
+                return Err(SnowflakeError::ExecutionError(
+                    anyhow!("Non-successful response from Snowflake API. Status: {status}."),
+                    Some(ErrorResult {
+                        error_type: Some(text.clone()),
+                        error_code: status.to_string(),
+                        internal_error: true,
+                        line: None,
+                        pos: None,
+                        query_id: query_id_str,
+                        query_detail_url,
+                    }),
+                ));
+            }
+        }
     }
 
     fn get_queries_url(&self, command: &str) -> String {
