@@ -102,7 +102,7 @@ impl Session {
                         }
                     })
                 })
-                .buffer_unordered(self.max_parallel_downloads.unwrap_or(1));
+                .buffered(self.max_parallel_downloads.unwrap_or(1));
 
             while let Some(joined_chunk) = buffered_chunks_futures.next().await {
                 let chunk = joined_chunk.map_err(|e| SnowflakeError::ExecutionError(e.into(), None))??;
