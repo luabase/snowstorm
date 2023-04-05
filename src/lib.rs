@@ -32,6 +32,7 @@ pub struct Snowstorm {
 
     // Optional settings
     proxy: Option<String>,
+    max_parallel_downloads: Option<usize>,
 }
 
 impl Snowstorm {
@@ -46,11 +47,17 @@ impl Snowstorm {
             schema: None,
             warehouse: None,
             proxy: None,
+            max_parallel_downloads: None,
         }
     }
 
     pub fn proxy(mut self, address: &str) -> Self {
         self.proxy = Some(address.to_owned());
+        self
+    }
+
+    pub fn max_parallel_downloads(mut self, count: usize) -> Self {
+        self.max_parallel_downloads = Some(count);
         self
     }
 
@@ -104,6 +111,7 @@ impl Snowstorm {
             schema,
             warehouse,
             proxy: None,
+            max_parallel_downloads: None,
         })
     }
 
@@ -205,6 +213,7 @@ impl Snowstorm {
             account_name,
             (!region.is_empty()).then_some(*region),
             &self.proxy,
+            self.max_parallel_downloads,
         );
 
         if let Some(role) = &self.role {
@@ -289,7 +298,9 @@ mod tests {
             "snowflake://{}:{}@{}/?role={}&database={}&schema={}&warehouse={}",
             user, password, account, role, database, schema, warehouse
         );
-        let client = Snowstorm::try_new_with_dsn(dsn).expect("Client should have been created");
+        let client = Snowstorm::try_new_with_dsn(dsn)
+            .expect("Client should have been created")
+            .max_parallel_downloads(5);
 
         assert_eq!(client.user, user);
         assert_eq!(client.password, password);
@@ -298,6 +309,7 @@ mod tests {
         assert_eq!(client.schema, Some(schema.to_owned()));
         assert_eq!(client.database, Some(database.to_owned()));
         assert_eq!(client.warehouse, Some(warehouse.to_owned()));
+        assert_eq!(client.max_parallel_downloads, Some(5));
 
         Ok(())
     }

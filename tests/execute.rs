@@ -1,9 +1,9 @@
 mod support;
 
 use snowstorm::errors::SnowflakeError;
-use snowstorm::responses::result::{
+use snowstorm::responses::{result::{
     hashmap::HashMapResult, jsonmap::JsonMapResult, jsonvec::JsonVecResult, vec::VecResult,
-};
+}, types::value::Value};
 use support::{common_init, new_full_client, new_valid_client};
 
 #[tokio::test]
@@ -119,5 +119,36 @@ async fn execute_error() -> Result<(), anyhow::Error> {
     let session = client.connect().await.expect("Session should have been created");
     let result = session.execute::<VecResult>("INVALID STATEMENT").await;
     assert_err!(result, Err(SnowflakeError::ExecutionError(_, _)));
+    Ok(())
+}
+
+#[tokio::test]
+async fn execute_select_ordered_into_vec_success() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_full_client().expect("Client should have been created").max_parallel_downloads(25);
+    let session = client.connect().await.expect("Session should have been created");
+    let res = session
+        .execute::<VecResult>("SELECT BLOCK_NUMBER FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS ORDER BY BLOCK_NUMBER ASC LIMIT 100000")
+        .await
+        .unwrap();
+
+    let mut prev = None;
+    for row in &res.rowset {
+        let block_num = match row.get(0).expect("Query should return rows.") {
+            Value::Nullable(Some(val)) => match **val {
+                Value::Integer(i) => i,
+                _ => panic!("Non integer block number.")
+            },
+            _ => panic!("Non nullable block number.")
+        };
+
+        match prev {
+            Some(prev_block_num) => assert!(prev_block_num <= block_num),
+            None => {},
+        }
+
+        prev = Some(block_num);
+    }
     Ok(())
 }
