@@ -37,7 +37,8 @@ use arrow2::datatypes::Schema as ArrowSchema;
 type ArrowMetadataWithChunks = (ArrowSchema, Vec<ArrowChunk<Box<dyn ArrowArray>>>);
 
 pub trait QueryDeserializer: Sized {
-    type ReturnType;
+    // Return types must conform to this to return through a tokio task.
+    type ReturnType: Send + 'static;
 
     fn deserialize_rowset(
         rowset: &[Vec<serde_json::Value>],

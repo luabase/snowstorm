@@ -22,7 +22,7 @@ async fn main() {
         "snowflake://{user}:{password}@{account}/?role={role}&database={database}&schema={schema}&warehouse={warehouse}"
     );
 
-    let client = Snowstorm::try_new_with_dsn(dsn).unwrap().proxy("http://127.0.0.1:9090");
+    let client = Snowstorm::try_new_with_dsn(dsn).unwrap().max_parallel_downloads(25);
     let session = client.connect().await.unwrap();
 
     let query = "SELECT BLOCK_NUMBER, NONCE, TRANSACTION_INDEX, GAS_PRICE, MAX_PRIORITY_FEE_PER_GAS, TRANSACTION_TYPE, STATUS, VALUE, GAS, MAX_FEE_PER_GAS, BLOCK_TIMESTAMP FROM luabase.clickhouse.ethereum_transactions LIMIT 1000000";

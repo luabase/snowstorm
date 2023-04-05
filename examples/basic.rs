@@ -11,7 +11,7 @@ async fn main() {
     let schema = dotenv!("SNOWFLAKE_SCHEMA");
     let warehouse = dotenv!("SNOWFLAKE_WAREHOUSE");
 
-    let client = Snowstorm::new(account.into(), user.into(), password.into());
+    let client = Snowstorm::new(account.into(), user.into(), password.into()).max_parallel_downloads(5);
     let session = client.connect().await.unwrap();
     _ = session.execute::<VecResult>(&format!("USE ROLE {role}")).await;
     _ = session.execute::<VecResult>(&format!("USE DATABASE {database}")).await;

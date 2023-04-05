@@ -11,6 +11,7 @@ use crate::responses::{get_query_detail_url, make_chunk_downloader, QueryResult}
 use anyhow::anyhow;
 use backoff::backoff::Backoff;
 use chrono::prelude::*;
+use futures::StreamExt;
 use reqwest::header::ACCEPT;
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
@@ -32,6 +33,7 @@ pub struct Session {
     pub(crate) region: Option<String>,
     pub(crate) proxy: Option<String>,
     pub(crate) sequence_counter: AtomicU32,
+    pub(crate) max_parallel_downloads: Option<usize>,
 }
 
 impl Session {
@@ -41,6 +43,7 @@ impl Session {
         account: &str,
         region: Option<&str>,
         proxy: &Option<String>,
+        max_parallel_downloads: Option<usize>,
     ) -> Self {
         Session {
             client,
@@ -49,6 +52,7 @@ impl Session {
             region: region.map(str::to_string),
             proxy: proxy.clone(),
             sequence_counter: AtomicU32::new(1),
+            max_parallel_downloads,
         }
     }
 
@@ -82,19 +86,29 @@ impl Session {
 
         if let Some(chunks) = internal.chunks.clone() {
             let downloader = make_chunk_downloader(self, &internal)?;
-            for chunk in chunks {
-                let loaded = match internal.query_result_format.as_str() {
-                    "arrow" => chunk.load_arrow::<T>(&downloader).await,
-                    "json" => chunk.load_json::<T>(&downloader, &internal.rowtype).await,
-                    x => Err(SnowflakeError::ChunkLoadingError(anyhow!(
-                        "Unsupported query result format {x}"
-                    ))),
-                }?;
+            let mut buffered_chunks_futures = tokio_stream::iter(chunks)
+                .map(|chunk| {
+                    let task_query_result_format = internal.query_result_format.clone();
+                    let task_downloader = downloader.clone();
+                    let task_row_type = internal.rowtype.clone();
+                    tokio::spawn(async move {
+                        log::debug!("Downloading chunk at url: {}", chunk.url);
+                        match task_query_result_format.as_str() {
+                            "arrow" => chunk.load_arrow::<T>(&task_downloader).await,
+                            "json" => chunk.load_json::<T>(&task_downloader, &task_row_type).await,
+                            x => Err(SnowflakeError::ChunkLoadingError(anyhow!(
+                                "Unsupported query result format {x}"
+                            ))),
+                        }
+                    })
+                })
+                .buffer_unordered(self.max_parallel_downloads.unwrap_or(1));
 
-                rowset.extend(&mut loaded.into_iter());
+            while let Some(joined_chunk) = buffered_chunks_futures.next().await {
+                let chunk = joined_chunk.map_err(|e| SnowflakeError::ExecutionError(e.into(), None))??;
+                rowset.extend(&mut chunk.into_iter());
             }
         }
-
         Ok(T::new(&internal, &rowset, self))
     }
 
@@ -206,7 +220,7 @@ impl Session {
     ) -> Result<T, SnowflakeError> {
         let now = Utc::now();
         let req = QueryRequest {
-            async_exec: async_exec,
+            async_exec,
             parameters: Some(json!({ "PYTHON_CONNECTOR_QUERY_RESULT_FORMAT": Self::result_format() })),
             query_submission_time: now.timestamp_millis(),
             sequence_id: self.sequence_counter.load(Ordering::Relaxed),
