@@ -15,6 +15,7 @@ use responses::types::{data::DataResponse, login::LoginResponse};
 use serde_json::json;
 use session::Session;
 use std::collections::HashMap;
+use std::time::Duration;
 use utils::urldecode_some;
 
 #[derive(Debug)]
@@ -33,6 +34,7 @@ pub struct Snowstorm {
     // Optional settings
     proxy: Option<String>,
     max_parallel_downloads: Option<usize>,
+    deadline: Option<Duration>,
 }
 
 impl Snowstorm {
@@ -48,6 +50,7 @@ impl Snowstorm {
             warehouse: None,
             proxy: None,
             max_parallel_downloads: None,
+            deadline: None,
         }
     }
 
@@ -58,6 +61,11 @@ impl Snowstorm {
 
     pub fn max_parallel_downloads(mut self, count: usize) -> Self {
         self.max_parallel_downloads = Some(count);
+        self
+    }
+
+    pub fn deadline(mut self, dur: Duration) -> Self {
+        self.deadline = Some(dur);
         self
     }
 
@@ -112,6 +120,7 @@ impl Snowstorm {
             warehouse,
             proxy: None,
             max_parallel_downloads: None,
+            deadline: None,
         })
     }
 
@@ -214,6 +223,7 @@ impl Snowstorm {
             (!region.is_empty()).then_some(*region),
             &self.proxy,
             self.max_parallel_downloads,
+            self.deadline,
         );
 
         if let Some(role) = &self.role {

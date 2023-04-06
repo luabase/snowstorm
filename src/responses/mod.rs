@@ -10,7 +10,7 @@ use crate::session::Session;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT};
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 #[async_trait]
 pub trait QueryResult: deserializer::QueryDeserializer + serializer::QuerySerializer + Sized {
@@ -53,6 +53,7 @@ pub(crate) fn make_chunk_headers(raw_headers: &HashMap<String, serde_json::Value
 pub(super) fn make_chunk_downloader(
     session: &Session,
     res: &InternalResult,
+    timeout: Option<Duration>,
 ) -> Result<reqwest::Client, SnowflakeError> {
     let headers = match &res.chunk_headers {
         Some(h) => make_chunk_headers(h).map_err(SnowflakeError::ChunkLoadingError)?,
@@ -66,6 +67,10 @@ pub(super) fn make_chunk_downloader(
         .gzip(true)
         .deflate(true)
         .default_headers(headers);
+
+    if let Some(dur) = timeout {
+        builder = builder.timeout(dur);
+    }
 
     if let Some(proxy) = &session.proxy {
         builder = builder.proxy(reqwest::Proxy::https(proxy).unwrap());
