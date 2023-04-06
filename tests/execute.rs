@@ -166,7 +166,7 @@ async fn execute_timeout() -> Result<(), anyhow::Error> {
 
     let client = new_full_client()
         .expect("Client should have been created")
-        .deadline(Duration::from_secs(1));
+        .timeout(Duration::from_secs(1));
     let session = client.connect().await.expect("Session should have been created");
     let res = session
         .execute::<VecResult>(

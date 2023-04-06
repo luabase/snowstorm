@@ -34,7 +34,7 @@ pub struct Snowstorm {
     // Optional settings
     proxy: Option<String>,
     max_parallel_downloads: Option<usize>,
-    deadline: Option<Duration>,
+    timeout: Option<Duration>,
 }
 
 impl Snowstorm {
@@ -50,7 +50,7 @@ impl Snowstorm {
             warehouse: None,
             proxy: None,
             max_parallel_downloads: None,
-            deadline: None,
+            timeout: None,
         }
     }
 
@@ -64,8 +64,8 @@ impl Snowstorm {
         self
     }
 
-    pub fn deadline(mut self, dur: Duration) -> Self {
-        self.deadline = Some(dur);
+    pub fn timeout(mut self, dur: Duration) -> Self {
+        self.timeout = Some(dur);
         self
     }
 
@@ -120,7 +120,7 @@ impl Snowstorm {
             warehouse,
             proxy: None,
             max_parallel_downloads: None,
-            deadline: None,
+            timeout: None,
         })
     }
 
@@ -223,7 +223,7 @@ impl Snowstorm {
             (!region.is_empty()).then_some(*region),
             &self.proxy,
             self.max_parallel_downloads,
-            self.deadline,
+            self.timeout,
         );
 
         if let Some(role) = &self.role {

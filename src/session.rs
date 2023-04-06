@@ -34,7 +34,7 @@ pub struct Session {
     pub(crate) proxy: Option<String>,
     pub(crate) sequence_counter: AtomicU32,
     pub(crate) max_parallel_downloads: Option<usize>,
-    pub(crate) deadline: Option<Duration>,
+    pub(crate) timeout: Option<Duration>,
 }
 
 impl Session {
@@ -45,7 +45,7 @@ impl Session {
         region: Option<&str>,
         proxy: &Option<String>,
         max_parallel_downloads: Option<usize>,
-        deadline: Option<Duration>,
+        timeout: Option<Duration>,
     ) -> Self {
         Session {
             client,
@@ -55,7 +55,7 @@ impl Session {
             proxy: proxy.clone(),
             sequence_counter: AtomicU32::new(1),
             max_parallel_downloads,
-            deadline,
+            timeout,
         }
     }
 
@@ -96,7 +96,7 @@ impl Session {
             ));
         }
 
-        let timeout = self.get_remaining_deadline(start_ts);
+        let timeout = self.get_remaining_timeout(start_ts);
         if let Some(chunks) = internal.chunks.clone() {
             let downloader = make_chunk_downloader(self, &internal, timeout)?;
             let mut buffered_chunks_futures = tokio_stream::iter(chunks)
@@ -121,10 +121,10 @@ impl Session {
                 let chunk = joined_chunk.map_err(|e| SnowflakeError::ExecutionError(e.into(), None))??;
                 rowset.extend(&mut chunk.into_iter());
 
-                // This timeout is passed to the reqwest client, but because it's buffered the timeout may extend past the deadline.
-                if let Some(Duration::ZERO) = self.get_remaining_deadline(start_ts) {
+                // This timeout is passed to the reqwest client, but because it's buffered the timeout may extend past the timeout.
+                if let Some(Duration::ZERO) = self.get_remaining_timeout(start_ts) {
                     return Err(SnowflakeError::ExecutionError(
-                        anyhow!("Request timed out after {:#?}", self.deadline.unwrap()),
+                        anyhow!("Request timed out after {:#?}", self.timeout.unwrap()),
                         None,
                     ));
                 }
@@ -145,7 +145,7 @@ impl Session {
         let backoff = backoff::ExponentialBackoffBuilder::new()
             .with_initial_interval(Duration::from_millis(500))
             .with_max_interval(Duration::from_secs(5))
-            .with_max_elapsed_time(self.get_remaining_deadline(start_ts))
+            .with_max_elapsed_time(self.get_remaining_timeout(start_ts))
             .build();
 
         let no_data_counter = AtomicI32::new(0);
@@ -215,7 +215,7 @@ impl Session {
             }
 
             if query_status == QueryStatus::NoData {
-                let counter = no_data_counter.fetch_add(1, Ordering::Relaxed);
+                let counter = no_data_counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if counter > MAX_NO_DATA_RETRY {
                     return Err(backoff::Error::Permanent(SnowflakeError::ExecutionError(
                         anyhow!("Cannot retrieve data on the status of this query. No information returned from server for query '{query_id}'"),
@@ -255,7 +255,7 @@ impl Session {
         let backoff = backoff::ExponentialBackoffBuilder::new()
             .with_initial_interval(Duration::from_secs(1))
             .with_max_interval(Duration::from_secs(16))
-            .with_max_elapsed_time(self.get_remaining_deadline(start_ts))
+            .with_max_elapsed_time(self.get_remaining_timeout(start_ts))
             .build();
 
         let request_op = || async {
@@ -379,8 +379,8 @@ impl Session {
         }
     }
 
-    fn get_remaining_deadline(&self, start_ts: Instant) -> Option<Duration> {
-        self.deadline
+    fn get_remaining_timeout(&self, start_ts: Instant) -> Option<Duration> {
+        self.timeout
             .map(|d| d.checked_sub(start_ts.elapsed()).unwrap_or_default())
     }
 }
