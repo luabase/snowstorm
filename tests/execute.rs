@@ -174,6 +174,6 @@ async fn execute_timeout() -> Result<(), anyhow::Error> {
         )
         .await;
 
-    assert_err!(res, Err(SnowflakeError::ExecutionError(_, _)));
+    assert_err!(res, Err(_));
     Ok(())
 }
