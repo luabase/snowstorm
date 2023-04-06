@@ -123,7 +123,10 @@ impl Session {
 
                 // This timeout is passed to the reqwest client, but because it's buffered the timeout may extend past the deadline.
                 if let Some(Duration::ZERO) = self.get_remaining_deadline(start_ts) {
-                    return Err(SnowflakeError::ExecutionError(anyhow!("Request timed out after {:#?}", self.deadline.unwrap()), None));
+                    return Err(SnowflakeError::ExecutionError(
+                        anyhow!("Request timed out after {:#?}", self.deadline.unwrap()),
+                        None,
+                    ));
                 }
             }
         }
@@ -247,9 +250,11 @@ impl Session {
             sql_text: query,
         };
         let query_url = self.get_queries_url("query-request");
+
+        // https://github.com/snowflakedb/snowflake-connector-python/blob/f0a38d958c82bf039765faee7050c89d2ccb1d72/src/snowflake/connector/network.py#L791
         let backoff = backoff::ExponentialBackoffBuilder::new()
-            .with_initial_interval(Duration::from_millis(500))
-            .with_max_interval(Duration::from_secs(5))
+            .with_initial_interval(Duration::from_secs(1))
+            .with_max_interval(Duration::from_secs(16))
             .with_max_elapsed_time(self.get_remaining_deadline(start_ts))
             .build();
 
@@ -375,7 +380,7 @@ impl Session {
     }
 
     fn get_remaining_deadline(&self, start_ts: Instant) -> Option<Duration> {
-        self.deadline.map(|d| d.checked_sub(start_ts.elapsed()).unwrap_or_default())
+        self.deadline
+            .map(|d| d.checked_sub(start_ts.elapsed()).unwrap_or_default())
     }
-
 }
