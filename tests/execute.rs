@@ -44,13 +44,27 @@ async fn execute_fail() -> Result<(), anyhow::Error> {
 }
 
 #[tokio::test]
+async fn execute_select_numeric_success() -> Result<(), anyhow::Error> {
+    common_init();
+
+    let client = new_full_client().expect("Client should have been created");
+    let session = client.connect().await.expect("Session should have been created");
+    let res = session
+        .execute::<HashMapResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.NUMBER_TEST")
+        .await
+        .unwrap();
+    assert_eq!(res.rowset.len(), res.total);
+    Ok(())
+}
+
+#[tokio::test]
 async fn execute_select_into_vec_success() -> Result<(), anyhow::Error> {
     common_init();
 
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session
-        .execute::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .execute::<VecResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.TEST")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), res.total);
@@ -64,7 +78,7 @@ async fn execute_select_into_hashmap_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session
-        .execute::<HashMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .execute::<HashMapResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.TEST")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), res.total);
@@ -78,7 +92,7 @@ async fn execute_select_into_jsonmap_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session
-        .execute::<JsonMapResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .execute::<JsonMapResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.TEST")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), res.total);
@@ -92,7 +106,7 @@ async fn execute_select_into_jsonvec_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session
-        .execute::<JsonVecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .execute::<JsonVecResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.TEST")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), res.total);
@@ -144,7 +158,7 @@ async fn execute_select_ordered_into_vec_success() -> Result<(), anyhow::Error> 
     for row in &res.rowset {
         let block_num = match row.get(0).expect("Query should return rows.") {
             Value::Nullable(Some(val)) => match **val {
-                Value::Integer(i) => i,
+                Value::I128(i) => i,
                 _ => panic!("Non integer block number."),
             },
             _ => panic!("Non nullable block number."),

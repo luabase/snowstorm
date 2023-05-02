@@ -112,7 +112,8 @@ pub trait QueryDeserializer: Sized {
 
         match value_type {
             ValueType::Boolean => boolean_from_json(json, row_type),
-            ValueType::Integer => integer_from_json(json, row_type),
+            ValueType::I128 => integer_from_json(json, row_type),
+            ValueType::I64 => integer_from_json(json, row_type),
             ValueType::Float => float_from_json(json, row_type),
             ValueType::String => string_from_json(json, row_type),
             ValueType::Binary => binary_from_json(json, row_type),
@@ -164,7 +165,8 @@ pub trait QueryDeserializer: Sized {
 
         match value_type {
             ValueType::Boolean => boolean_from_arrow(column, field),
-            ValueType::Integer => integer_from_arrow(column, field),
+            ValueType::I128 => integer_from_arrow(column, field),
+            ValueType::I64 => integer_from_arrow(column, field),
             ValueType::Float => match &field.data_type {
                 arrow2::datatypes::DataType::Int8 => integer_from_arrow(column, field),
                 arrow2::datatypes::DataType::UInt8 => integer_from_arrow(column, field),

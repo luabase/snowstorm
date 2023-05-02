@@ -45,7 +45,12 @@ impl RowType {
             "boolean" => ValueType::Boolean,
             "fixed" => {
                 if self.scale == Some(0) {
-                    ValueType::Integer
+                    if self.precision <= Some(19) {
+                        ValueType::I64
+                    }
+                    else {
+                        ValueType::I128
+                    }
                 }
                 else {
                     ValueType::Float

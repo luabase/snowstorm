@@ -7,7 +7,7 @@ pub trait QuerySerializer {
             Value::Binary(v) => serde_json::to_value(v),
             Value::Boolean(v) => serde_json::to_value(v),
             Value::Decimal(v) => serde_json::to_value(v),
-            Value::Integer(x) => {
+            Value::I128(x) => {
                 if cfg!(integer128) {
                     serde_json::to_value(x)
                 }
@@ -15,6 +15,7 @@ pub trait QuerySerializer {
                     serde_json::to_value(x.to_string())
                 }
             }
+            Value::I64(x) => serde_json::to_value(x),
             Value::Float(v) => serde_json::to_value(v),
             Value::String(v) => serde_json::to_value(v),
             Value::NaiveDate(v) => serde_json::to_value(v),

@@ -49,7 +49,7 @@ async fn execute_async_select_into_vec_success() -> Result<(), anyhow::Error> {
     let client = new_full_client().expect("Client should have been created");
     let session = client.connect().await.expect("Session should have been created");
     let res = session
-        .execute_async::<VecResult>("SELECT * FROM LUABASE.CLICKHOUSE.TYPES_TEST")
+        .execute_async::<VecResult>("SELECT * FROM SNOWSTORM_TEST_DATA.PUBLIC.TEST")
         .await
         .unwrap();
     assert_eq!(res.rowset.len(), res.total);

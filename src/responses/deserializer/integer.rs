@@ -4,20 +4,35 @@ use crate::responses::types::{row_type::RowType, value::Value};
 use serde_json;
 
 pub(super) fn from_json(json: &str, row_type: &RowType) -> Result<Value, SnowflakeError> {
-    let parsed: i128 = serde_json::from_str(json).map_err(|e| {
-        SnowflakeError::new_deserialization_error_with_field_and_value(
-            e.into(),
-            row_type.name.clone(),
-            json.to_string(),
-        )
-    })?;
+    let value = if row_type.precision <= Some(19) {
+        let parsed: i64 = serde_json::from_str(json).map_err(|e| {
+            SnowflakeError::new_deserialization_error_with_field_and_value(
+                e.into(),
+                row_type.name.clone(),
+                json.to_string(),
+            )
+        })?;
+
+        Value::I64(parsed)
+    }
+    else {
+        let parsed: i128 = serde_json::from_str(json).map_err(|e| {
+            SnowflakeError::new_deserialization_error_with_field_and_value(
+                e.into(),
+                row_type.name.clone(),
+                json.to_string(),
+            )
+        })?;
+
+        Value::I128(parsed)
+    };
 
     if row_type.nullable {
-        let boxed = Box::new(Value::Integer(parsed));
+        let boxed = Box::new(value);
         Ok(Value::Nullable(Some(boxed)))
     }
     else {
-        Ok(Value::Integer(parsed))
+        Ok(value)
     }
 }
 
@@ -64,17 +79,17 @@ fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
             let res: Vec<Value> = opt
                 .iter()
                 .map(|x| {
-                    let value: i128 = match x {
+                    let value: i64 = match x {
                         Some(x) => num::cast(*x).unwrap(),
                         None => return null_from_arrow(field),
                     };
 
                     if field.is_nullable {
-                        let boxed = Box::new(Value::Integer(value));
+                        let boxed = Box::new(Value::I64(value));
                         Ok(Value::Nullable(Some(boxed)))
                     }
                     else {
-                        Ok(Value::Integer(value))
+                        Ok(Value::I64(value))
                     }
                 })
                 .scan(&mut err, until_err)
