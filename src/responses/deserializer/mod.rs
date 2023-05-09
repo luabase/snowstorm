@@ -166,17 +166,19 @@ pub trait QueryDeserializer: Sized {
 
         match value_type {
             ValueType::Boolean => boolean_from_arrow(column, field),
-            ValueType::I128 => integer_from_arrow(column, field, &value_type),
-            ValueType::I64 => integer_from_arrow(column, field, &value_type),
+            ValueType::I128 => integer_from_arrow(column, field, &row_type),
+            ValueType::I64 => integer_from_arrow(column, field, &row_type),
             ValueType::Float => match &field.data_type {
-                arrow2::datatypes::DataType::Int8 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::UInt8 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::Int16 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::UInt16 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::Int32 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::UInt32 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::Int64 => integer_from_arrow(column, field, &value_type),
-                arrow2::datatypes::DataType::UInt64 => integer_from_arrow(column, field, &value_type),
+                arrow2::datatypes::DataType::Int8 |
+                arrow2::datatypes::DataType::UInt8 |
+                arrow2::datatypes::DataType::Int16 |
+                arrow2::datatypes::DataType::UInt16 |
+                arrow2::datatypes::DataType::Int32 |
+                arrow2::datatypes::DataType::UInt32| 
+                arrow2::datatypes::DataType::Int64 |
+                arrow2::datatypes::DataType::UInt64 => {
+                    integer_from_arrow(column, field, &row_type)
+                }
                 arrow2::datatypes::DataType::Float16 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float32 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float64 => float_from_arrow(column, field),

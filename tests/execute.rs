@@ -184,7 +184,7 @@ async fn execute_timeout() -> Result<(), anyhow::Error> {
     let session = client.connect().await.expect("Session should have been created");
     let res = session
         .execute::<VecResult>(
-            "SELECT BLOCK_NUMBER FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS ORDER BY BLOCK_NUMBER ASC LIMIT 100000",
+            "SELECT * FROM LUABASE.CLICKHOUSE.ETHEREUM_TRANSACTIONS ORDER BY BLOCK_NUMBER ASC LIMIT 100000",
         )
         .await;
 
