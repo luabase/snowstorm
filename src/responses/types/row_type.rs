@@ -53,7 +53,7 @@ impl RowType {
                     }
                 }
                 else {
-                    ValueType::Float
+                    ValueType::Decimal
                 }
             }
             "real" => ValueType::Float,
