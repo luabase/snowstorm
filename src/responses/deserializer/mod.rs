@@ -168,6 +168,7 @@ pub trait QueryDeserializer: Sized {
             ValueType::Boolean => boolean_from_arrow(column, field),
             ValueType::I128 => integer_from_arrow(column, field, &row_type),
             ValueType::I64 => integer_from_arrow(column, field, &row_type),
+            ValueType::Decimal => integer_from_arrow(column, field, &row_type),
             ValueType::Float => match &field.data_type {
                 arrow2::datatypes::DataType::Int8 |
                 arrow2::datatypes::DataType::UInt8 |
