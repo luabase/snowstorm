@@ -203,12 +203,15 @@ impl Session {
                         qr.error_result
                             .to_error_result(query_id, &get_query_detail_url(self, query_id))
                     });
-                    let message = query_result
+                    let mut message = query_result
                         .map(|qr| qr.error_result.error_message.clone())
                         .unwrap_or_default()
                         .unwrap_or_default();
+                    if message.is_empty() {
+                        message = "No reason given by Snowflake API".to_owned();
+                    }
                     return Err(backoff::Error::Permanent(SnowflakeError::ExecutionError(
-                        anyhow!("Failed to execute query '{query}', with reason: {message}"),
+                        anyhow!(message),
                         error_result,
                     )));
                 }
@@ -305,13 +308,13 @@ impl Session {
             let err = ErrorResult::deserialize(res.data, self)?;
             if let Some(message) = res.message {
                 return Err(SnowflakeError::ExecutionError(
-                    anyhow!("Failed to execute query {query} with reason: {message}"),
+                    anyhow!(message),
                     Some(err),
                 ));
             }
             else {
                 return Err(SnowflakeError::ExecutionError(
-                    anyhow!("Failed to execute query {query}, but no reason was given by Snowflake API"),
+                    anyhow!("No reason given by Snowflake API"),
                     Some(err),
                 ));
             }
