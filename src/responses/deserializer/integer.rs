@@ -72,7 +72,11 @@ fn upcast_i64_to_value_type(num: i64, value_type: ValueType, scale: i32, field_n
 
     let value = match value_type {
         ValueType::Nullable(inner) => wrap_in_nullable(upcast_i64_to_value_type(num, *inner, scale, field_name)?, true),
-        ValueType::Decimal => Value::Decimal(Decimal::from(num)),
+        ValueType::Decimal => {
+            let decimal = Decimal::from_parts(num.abs() as u128, scale as i16, num.is_negative())
+                .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+            Value::Decimal(decimal)
+        }
         ValueType::I128 => Value::I128(num.into()),
         ValueType::I64 => Value::I64(num),
         ValueType::Float => {
