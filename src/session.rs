@@ -234,7 +234,8 @@ impl Session {
 
         backoff::future::retry_notify(backoff, request_op, |e, dur| {
             log::warn!("await-async-query operation failed in {:?} with error: {}", dur, e)
-        }).await
+        })
+        .await
     }
 
     async fn execute_query_request<T: DeserializeOwned>(
@@ -292,7 +293,8 @@ impl Session {
 
         let text = backoff::future::retry_notify(backoff, request_op, |e, dur| {
             log::warn!("execute-query-request operation failed in {:?} with error: {}", dur, e)
-        }).await?;
+        })
+        .await?;
 
         let res: DataResponse<serde_json::Value> = serde_json::from_str(&text).map_err(|e| {
             log::error!("Failed to execute query {query} with URL {query_url} due to deserialization error.");
