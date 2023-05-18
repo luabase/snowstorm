@@ -91,8 +91,8 @@ pub trait QueryDeserializer: Sized {
         use crate::responses::deserializer::datetime_utc::from_json as datetime_utc_from_json;
         use crate::responses::deserializer::float::from_json as float_from_json;
         use crate::responses::deserializer::hashmap::from_json as hashmap_from_json;
-        use crate::responses::deserializer::integer::i64_from_json;
         use crate::responses::deserializer::integer::i128_from_json;
+        use crate::responses::deserializer::integer::i64_from_json;
         use crate::responses::deserializer::naive_date::from_json as naive_date_from_json;
         use crate::responses::deserializer::naive_datetime::from_json as naive_datetime_from_json;
         use crate::responses::deserializer::naive_time::from_json as naive_time_from_json;
@@ -170,16 +170,14 @@ pub trait QueryDeserializer: Sized {
             ValueType::I64 => integer_from_arrow(column, field, &row_type),
             ValueType::Decimal => integer_from_arrow(column, field, &row_type),
             ValueType::Float => match &field.data_type {
-                arrow2::datatypes::DataType::Int8 |
-                arrow2::datatypes::DataType::UInt8 |
-                arrow2::datatypes::DataType::Int16 |
-                arrow2::datatypes::DataType::UInt16 |
-                arrow2::datatypes::DataType::Int32 |
-                arrow2::datatypes::DataType::UInt32| 
-                arrow2::datatypes::DataType::Int64 |
-                arrow2::datatypes::DataType::UInt64 => {
-                    integer_from_arrow(column, field, &row_type)
-                }
+                arrow2::datatypes::DataType::Int8
+                | arrow2::datatypes::DataType::UInt8
+                | arrow2::datatypes::DataType::Int16
+                | arrow2::datatypes::DataType::UInt16
+                | arrow2::datatypes::DataType::Int32
+                | arrow2::datatypes::DataType::UInt32
+                | arrow2::datatypes::DataType::Int64
+                | arrow2::datatypes::DataType::UInt64 => integer_from_arrow(column, field, &row_type),
                 arrow2::datatypes::DataType::Float16 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float32 => float_from_arrow(column, field),
                 arrow2::datatypes::DataType::Float64 => float_from_arrow(column, field),

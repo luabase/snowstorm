@@ -47,7 +47,7 @@ pub(super) fn from_arrow(
     field: &arrow2::datatypes::Field,
     row_type: &RowType,
 ) -> Result<Vec<Value>, SnowflakeError> {
-    use crate::responses::{deserializer::decimal::from_arrow as decimal_from_arrow};
+    use crate::responses::deserializer::decimal::from_arrow as decimal_from_arrow;
     use anyhow::anyhow;
     use arrow2::datatypes::DataType;
     match field.data_type {
@@ -67,7 +67,12 @@ pub(super) fn from_arrow(
     }
 }
 
-fn upcast_i64_to_value_type(num: i64, value_type: ValueType, scale: i32, field_name: String) -> Result<Value, SnowflakeError> {
+fn upcast_i64_to_value_type(
+    num: i64,
+    value_type: ValueType,
+    scale: i32,
+    field_name: String,
+) -> Result<Value, SnowflakeError> {
     use anyhow::anyhow;
 
     let value = match value_type {
@@ -83,14 +88,14 @@ fn upcast_i64_to_value_type(num: i64, value_type: ValueType, scale: i32, field_n
             // Float types are stored as integers with a scale.
             let result = Decimal::from(num) / Decimal::from(10u64.pow(scale as u32));
             Value::Float(result.into())
-        },
+        }
         t => Err(SnowflakeError::new_deserialization_error_with_field(
             anyhow!("Invalid integer value type {:?}", t),
             field_name,
         ))?,
     };
     Ok(value)
-} 
+}
 
 #[cfg(feature = "arrow")]
 fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
@@ -118,7 +123,12 @@ fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
                     // The arrow return types sometimes do not match with value_type.
                     // Ex: SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY.total_elapsed_time is a Decimal(28,0) in value_type but I64 in arrow2.
                     // Here we make sure to encode the result as the expected value_type.
-                    upcast_i64_to_value_type(value, row_type.value_type(), row_type.scale.unwrap_or(0), field.name.clone())
+                    upcast_i64_to_value_type(
+                        value,
+                        row_type.value_type(),
+                        row_type.scale.unwrap_or(0),
+                        field.name.clone(),
+                    )
                 })
                 .scan(&mut err, until_err)
                 .collect();
@@ -129,10 +139,7 @@ fn downcast_integer<T: arrow2::types::NativeType + num::NumCast>(
             }
         }
         None => Err(SnowflakeError::new_deserialization_error_with_field(
-            anyhow!(
-                "Could not convert primitive array of type {:?} to i64",
-                field.data_type
-            ),
+            anyhow!("Could not convert primitive array of type {:?} to i64", field.data_type),
             field.name.clone(),
         )),
     }
