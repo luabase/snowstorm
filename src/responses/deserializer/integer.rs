@@ -1,4 +1,4 @@
-use crate::errors::SnowflakeError;
+use crate::errors::{SnowflakeError, WrappedDecimalConvertError};
 use crate::responses::types::value::ValueType;
 use crate::responses::types::{row_type::RowType, value::Value};
 use decimal_rs::Decimal;
@@ -9,8 +9,7 @@ fn wrap_in_nullable(value: Value, is_nullale: bool) -> Value {
     if is_nullale {
         let boxed = Box::new(value);
         Value::Nullable(Some(boxed))
-    }
-    else {
+    } else {
         value
     }
 }
@@ -78,8 +77,9 @@ fn upcast_i64_to_value_type(
     let value = match value_type {
         ValueType::Nullable(inner) => wrap_in_nullable(upcast_i64_to_value_type(num, *inner, scale, field_name)?, true),
         ValueType::Decimal => {
-            let decimal = Decimal::from_parts(num.abs() as u128, scale as i16, num.is_negative())
-                .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+            let decimal = Decimal::from_parts(num.abs() as u128, scale as i16, num.is_negative()).map_err(|e| {
+                SnowflakeError::new_deserialization_error(WrappedDecimalConvertError { source: e }.into())
+            })?;
             Value::Decimal(decimal)
         }
         ValueType::I128 => Value::I128(num.into()),

@@ -1,3 +1,6 @@
+use decimal_rs::DecimalConvertError;
+use std::fmt;
+
 use crate::responses::types::error::ErrorResult;
 
 #[derive(thiserror::Error, Debug)]
@@ -62,4 +65,21 @@ impl SnowflakeError {
 pub struct DeserializationErrorContext {
     pub field: Option<String>,
     pub value: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct WrappedDecimalConvertError {
+    pub source: DecimalConvertError,
+}
+
+impl fmt::Display for WrappedDecimalConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Decimal conversion error: {}", self.source)
+    }
+}
+
+impl std::error::Error for WrappedDecimalConvertError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
 }
