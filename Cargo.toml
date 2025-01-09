@@ -11,13 +11,16 @@ categories = ["database"]
 
 [dependencies]
 anyhow = "1.0"
-arrow2 = { version = "0.15.0", features = ["io_ipc", "io_json"], optional = true }
+arrow2 = { version = "0.15.0", features = [
+  "io_ipc",
+  "io_json",
+], optional = true }
 async-compression = { version = "0.3.15", features = ["futures-io", "gzip"] }
 async-trait = "0.1"
 backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.20.0"
 chrono = { version = "0.4", features = ["serde"] }
-decimal-rs = { version = "0.1.41", features = ["serde"] }
+decimal-rs = { version = "0.1.43", features = ["serde"] }
 futures = "0.3.25"
 hex = "0.4.3"
 log = "0.4"

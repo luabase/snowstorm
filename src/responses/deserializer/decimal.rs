@@ -1,4 +1,4 @@
-use crate::errors::SnowflakeError;
+use crate::errors::{SnowflakeError, WrappedDecimalConvertError};
 use crate::responses::types::value::Value;
 use decimal_rs::Decimal;
 
@@ -22,14 +22,15 @@ pub(super) fn from_arrow(
                 None => return null_from_arrow(field),
             };
 
-            let decimal = Decimal::from_parts(value.abs() as u128, *scale as i16, value.is_negative())
-                .map_err(|e| SnowflakeError::new_deserialization_error(e.into()))?;
+            let decimal =
+                Decimal::from_parts(value.unsigned_abs(), *scale as i16, value.is_negative()).map_err(|e| {
+                    SnowflakeError::new_deserialization_error(WrappedDecimalConvertError { source: e }.into())
+                })?;
 
             if field.is_nullable {
                 let boxed = Box::new(Value::Decimal(decimal));
                 Ok(Value::Nullable(Some(boxed)))
-            }
-            else {
+            } else {
                 Ok(Value::Decimal(decimal))
             }
         })
